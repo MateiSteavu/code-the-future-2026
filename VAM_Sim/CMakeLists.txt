@@ -6,6 +6,7 @@ project(VAM_SIM LANGUAGES CXX)
 add_executable(${CMAKE_PROJECT_NAME})
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE main.cpp)
 
+
 #Libraries
 add_library(geometry
   ${PROJECT_SOURCE_DIR}/src/Geometry/Ray.cpp
@@ -20,10 +21,10 @@ target_include_directories(geometry PUBLIC
 add_library(custom_math
   ${PROJECT_SOURCE_DIR}/src/Custom_Math.cpp
 )
-target_include_directories(geometry PUBLIC 
+target_include_directories(custom_math PUBLIC 
   ${PROJECT_SOURCE_DIR}/inc/
 )
-
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE geometry custom_math)
 
 
 
