@@ -20,11 +20,11 @@ jobs:
         sudo apt-get install -y clang cmake build-essential
 
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -S ${{github.workspace}} -DCMAKE_BUILD_TYPE=Debug
+      run: cmake -B ${{github.workspace}}/VAM_Sim/build -S ${{github.workspace}}/VAM_Sim -DCMAKE_BUILD_TYPE=Debug
 
     - name: Build project and tests
-      run: cmake --build ${{github.workspace}}/build --config Debug -j $(nproc)
+      run: cmake --build ${{github.workspace}}/VAM_Sim/build --config Debug -j $(nproc)
 
     - name: Run C++ tests
-      working-directory: ${{github.workspace}}/build
+      working-directory: ${{github.workspace}}/VAM_Sim/build
       run: ctest --output-on-failure
