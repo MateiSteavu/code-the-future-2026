@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.22)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-
 project(VAM_SIM LANGUAGES CXX)
 add_executable(${CMAKE_PROJECT_NAME})
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE main.cpp)
@@ -12,12 +10,21 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE main.cpp)
 add_library(geometry
   ${PROJECT_SOURCE_DIR}/src/Geometry/Ray.cpp
   ${PROJECT_SOURCE_DIR}/src/Geometry/Vector3.cpp
-  ${PROJECT_SOURCE_DIR}/src/Custom_Math.cpp
+  ${PROJECT_SOURCE_DIR}/src/Geometry/Cone.cpp
+  ${PROJECT_SOURCE_DIR}/src/Geometry/Voxel.cpp
 )
 target_include_directories(geometry PUBLIC 
   ${PROJECT_SOURCE_DIR}/inc/Geometry
-  ${CUDAToolkit_INCLUDE_DIRS}
 )
+
+add_library(custom_math
+  ${PROJECT_SOURCE_DIR}/src/Custom_Math.cpp
+)
+target_include_directories(geometry PUBLIC 
+  ${PROJECT_SOURCE_DIR}/inc/
+)
+
+
 
 
 # unit tests cu Google Test
@@ -33,7 +40,6 @@ FetchContent_Declare(
 
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
-
 
 #Ray test Code
 add_executable(
