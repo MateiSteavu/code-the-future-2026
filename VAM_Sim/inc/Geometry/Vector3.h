@@ -5,7 +5,7 @@
 
 class Vector3 {
 protected:
-    double x, y, z;
+    float x, y, z;
 
 public:
     // Constructors
@@ -19,17 +19,17 @@ public:
 
     // Setters
     void setX(float x);
-    void setY(float y);
+    void setY(float y); 
     void setZ(float z);
 
     // Operators
-    Vector3& operator=(const Vector3& other);
-    bool operator==(const Vector3& other) const;
-    bool operator!=(const Vector3& other);
-    Vector3 operator*(float scalar) const;
-    Vector3 operator/(float scalar) const;
-    Vector3 operator+(const Vector3& other) const;
-    Vector3 operator-(const Vector3& other) const;
+    Vector3& operator= (const Vector3& other) ;
+    bool     operator==(const Vector3& other) const;
+    bool     operator!=(const Vector3& other) ;
+    Vector3  operator* (float scalar)         const;
+    Vector3  operator/ (float scalar)         const;
+    Vector3  operator+ (const Vector3& other) const;
+    Vector3  operator- (const Vector3& other) const;
 
     // Rotation
     void Rot_X(float theta);
@@ -37,11 +37,12 @@ public:
     void Rot_Z(float theta);
 
     // Math
-    float dot(const Vector3& other) const;
-    Vector3 cross(const Vector3& other) const;
-    float length() const;
+    float   dot   (const Vector3& other) const;
+    Vector3 cross (const Vector3& other) const;
+    float   length()    const;
     Vector3 normalize() const;
-    float distanceTo(const Vector3& other) const;
+    float   distanceTo  (const Vector3& other) const;
+    Vector3 clamped     (const Vector3& lo, const Vector3& hi) const;
 };
 
 #endif // VECTOR3_H

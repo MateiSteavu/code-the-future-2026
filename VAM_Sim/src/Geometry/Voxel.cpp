@@ -6,10 +6,13 @@
 // ─── Constructors ─────────────────────────────────────────────────────────────
 
 Voxel::Voxel()
-    : center(0.0f, 0.0f, 0.0f), X(0.5f), Y(0.5f), Z(0.5f) {}
+    : center(0.0f, 0.0f, 0.0f), X(0.5f), Y(0.5f), Z(0.5f), energy(0) {}
 
 Voxel::Voxel(Vector3 center, float X, float Y, float Z)
-    : center(center), X(X), Y(Y), Z(Z) {}
+    : center(center), X(X), Y(Y), Z(Z), energy(0) {}
+
+Voxel::Voxel(Vector3 center, float width)
+    : center(center), X(width), Y(width), Z(width), energy(0) {}
 
 // ─── Getters ──────────────────────────────────────────────────────────────────
 
@@ -17,13 +20,15 @@ Vector3 Voxel::getCenter() const { return center; }
 float   Voxel::getX()      const { return X; }
 float   Voxel::getY()      const { return Y; }
 float   Voxel::getZ()      const { return Z; }
+float   Voxel::getEnergy() const { return energy; }
 
 // ─── Setters ──────────────────────────────────────────────────────────────────
 
-void Voxel::setCenter(const Vector3& c) { center = c; }
-void Voxel::setX(float x) { X = x; }
-void Voxel::setY(float y) { Y = y; }
-void Voxel::setZ(float z) { Z = z; }
+void Voxel::setCenter (const Vector3& c) { center = c; }
+void Voxel::setX      (float x) { X = x; }
+void Voxel::setY      (float y) { Y = y; }
+void Voxel::setZ      (float z) { Z = z; }
+void Voxel::setEnergy (float energy) { this->energy = energy; }
 
 // ─── Operators ────────────────────────────────────────────────────────────────
 

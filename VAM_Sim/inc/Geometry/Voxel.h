@@ -1,30 +1,33 @@
 #ifndef VOXEL_H
 #define VOXEL_H
 
-#include <array>
 #include "./Vector3.h"
 
 class Voxel {
 private:
     Vector3 center;   // World-space center
-    float X, Y, Z;   // Per-axis half-extents (supports non-cube boxes)
+    float X, Y, Z;    // Per-axis half-extents (supports non-cube boxes)
+    float energy;     // J 
 
 public:
     // Constructors
     Voxel();
     Voxel(Vector3 center, float X, float Y, float Z);
+    Voxel(Vector3 center, float width);
 
     // Getters
     Vector3 getCenter() const;
     float   getX()      const;
     float   getY()      const;
     float   getZ()      const;
+    float   getEnergy() const;
 
     // Setters
-    void setCenter(const Vector3& c);
-    void setX(float x);
-    void setY(float y);
-    void setZ(float z);
+    void setCenter (const Vector3& c);
+    void setX      (float x);
+    void setY      (float y);
+    void setZ      (float z);
+    void setEnergy (float energy);
 
     // Operators
     Voxel& operator= (const Voxel& other);
