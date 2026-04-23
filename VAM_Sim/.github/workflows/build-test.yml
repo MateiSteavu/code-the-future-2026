@@ -2,9 +2,9 @@ name: C++ CI with GTest
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "Electrosfera" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "main", "Electrosfera" ]
 
 jobs:
   build-and-test:
