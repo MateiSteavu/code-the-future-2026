@@ -1,30 +1,15 @@
 #include "../inc/Custom_Math.h"
 #include "../inc/Geometry/Ray.h"
 #include "../inc/Geometry/Voxel.h"
+#include "../inc/Print_Setup/Setup.h"
 
 #include <cmath>
 #include <algorithm>
 #include <array>
 
-bool Custom_Math::Ray_Voxel_Intersect(Ray r, Voxel V){
-
-}
-
-struct Cone {
-    Ray apex_dir;
-    float halfAngle;    // θ in radians;  solid angle Ω = 2π(1 - cos θ)
-
-    float cosHalfAngle() const { return std::cos(halfAngle); }
-
-    // Solid angle in steradians subtended by this cone
-    float solidAngle() const {
-        return 2.0f * 3.14159265f * (1.0f - std::cos(halfAngle));
-    }
-};
-
-static bool pointInCone(const Vector3& point, const Cone& cone)
+bool Custom_Math::pointInCone(const Vector3& point, const Cone& cone)
 {
-    Vector3 toPoint = (point - cone.getOrigin()).normalized();
+    Vector3 toPoint = (point - cone.getOrigin()).normalize();
     float cosAngle = toPoint.dot(cone.getDirection()); // direction must be unit
     return cosAngle >= cone.cosHalfAngle();
 }
@@ -36,10 +21,14 @@ static bool pointInCone(const Vector3& point, const Cone& cone)
 //  Just asks: does the cone's axis point at the voxel center?
 //  Misses voxels whose center is outside but whose body overlaps.
 //
-bool voxelInCone_CenterOnly(const Voxel& voxel, const Cone& cone)
+bool Custom_Math::voxelInCone_CenterOnly(const Voxel& voxel, const Cone& cone)
 {
     return pointInCone(voxel.getCenter(), cone);
 }
+
+
+
+
 
 // ============================================================
 //  TEST 2 — Bounding-sphere test  (conservative / fast cull)
@@ -54,9 +43,9 @@ bool voxelInCone_CenterOnly(const Voxel& voxel, const Cone& cone)
 //          but NEVER discards a voxel that truly overlaps.
 //  Use it as a cheap early-accept / early-reject pass.
 //
-bool voxelInCone_BoundingSphere(const Voxel& voxel, const Cone& cone)
+bool Custom_Math::voxelInCone_BoundingSphere(const Voxel& voxel, const Cone& cone)
 {
-    Vec3  toCenter = voxel.center - cone.apex;
+    Vector3  toCenter = voxel.getCenter() - cone.getOrigin();
     float dist     = toCenter.length();
 
     if (dist < 1e-9f) return true; // apex is inside the voxel
@@ -65,12 +54,17 @@ bool voxelInCone_BoundingSphere(const Voxel& voxel, const Cone& cone)
     float alpha = std::asin(std::clamp(r / dist, -1.0f, 1.0f)); // angular radius of sphere
 
     // Angle between cone axis and direction-to-voxel-center
-    float cosAngle = toCenter.normalized().dot(cone.direction);
+    float cosAngle = toCenter.normalize().dot(cone.getDirection());
     float phi      = std::acos(std::clamp(cosAngle, -1.0f, 1.0f));
 
     // Overlap when the angular gap is within the combined angles
-    return phi <= (cone.halfAngle + alpha);
+    return phi <= (cone.getHalfAngle() + alpha);
 }
+
+
+
+
+
 
 // ============================================================
 //  TEST 3 — Corner test  (good accuracy, cheap)
@@ -82,14 +76,18 @@ bool voxelInCone_BoundingSphere(const Voxel& voxel, const Cone& cone)
 //  Caveat: can miss cases where the cone clips an edge/face
 //  without touching any corner (rare for small voxels).
 //
-bool voxelInCone_Corners(const Voxel& voxel, const Cone& cone)
+bool Custom_Math::voxelInCone_Corners(const Voxel& voxel, const Cone& cone)
 {
-    for (const Vec3& corner : voxel.corners()) {
+    for (const Vector3& corner : voxel.corners()) {
         if (pointInCone(corner, cone))
             return true;
     }
     return false;
 }
+
+
+
+
 
 // ============================================================
 //  TEST 4 — Axis-closest-point test  (catches edge/face clips)
@@ -99,23 +97,27 @@ bool voxelInCone_Corners(const Voxel& voxel, const Cone& cone)
 //  onto the AABB. If the closest point on the AABB to that ray
 //  is inside the cone, the voxel overlaps even if no corner does.
 //
-bool voxelInCone_AxisClosestPoint(const Voxel& voxel, const Cone& cone)
+bool Custom_Math::voxelInCone_AxisClosestPoint(const Voxel& voxel, const Cone& cone)
 {
     // Project the voxel center onto the cone axis ray
-    Vec3  toCenter = voxel.center - cone.apex;
-    float t        = toCenter.dot(cone.direction); // signed distance along axis
+    Vector3  toCenter = voxel.getCenter() - cone.getOrigin();
+    float t        = toCenter.dot(cone.getDirection()); // signed distance along axis
 
     // Point on the cone axis closest to the voxel center
-    Vec3 axisPoint = cone.apex + cone.direction * t;
+    Vector3 axisPoint = cone.getOrigin() + cone.getDirection() * t;
 
     // Clamp that point to the AABB (closest point ON the AABB to the axis)
-    Vec3 lo = voxel.center - voxel.half();
-    Vec3 hi = voxel.center + voxel.half();
-    Vec3 closestOnAABB = axisPoint.clamped(lo, hi);
+    Vector3 lo = voxel.getCenter() - voxel.half();
+    Vector3 hi = voxel.getCenter() + voxel.half();
+    Vector3 closestOnAABB = axisPoint.clamped(lo, hi);
 
     // Check if that closest AABB point is inside the cone
     return pointInCone(closestOnAABB, cone);
 }
+
+
+
+
 
 // ============================================================
 //  TEST 5 — Full robust test  (combines all strategies)
@@ -126,7 +128,7 @@ bool voxelInCone_AxisClosestPoint(const Voxel& voxel, const Cone& cone)
 //    2. Corner test:     quick accept if any corner is inside
 //    3. Axis-closest:    catches remaining edge/face clips
 //
-bool voxelInCone_Robust(const Voxel& voxel, const Cone& cone)
+bool Custom_Math::voxelInCone_Robust(const Voxel& voxel, const Cone& cone)
 {
     // --- Stage 1: cheap sphere reject ---
     // If the bounding sphere doesn't even touch the cone, bail out.
@@ -182,7 +184,7 @@ bool voxelInCone_Robust(const Voxel& voxel, const Cone& cone)
 //  Returns the energy absorbed by this voxel per unit area (W/m²).
 //  I_out is written to the reference so you can pass it to the next voxel.
 //
-float beerLambert_VoxelAbsorption(
+float Custom_Math::beerLambert_VoxelAbsorption(
     float  I_in,        // incoming irradiance (W/m²)
     float  mu,          // attenuation coefficient (1/m)
     float  pathLength,  // ray segment length inside voxel (m)
@@ -203,6 +205,9 @@ float beerLambert_VoxelAbsorption(
     return absorbed;
 }
 
+
+
+
 // ============================================================
 //  Full energy received by a voxel from a cone light source
 // ============================================================
@@ -220,7 +225,7 @@ float beerLambert_VoxelAbsorption(
 //  Returns the irradiance deposited into the voxel (W/m²),
 //  or 0 if the voxel is not illuminated by this cone.
 //
-float voxelEnergyFromConeLight(
+float Custom_Math::voxelEnergyFromConeLight(
     const Voxel& voxel,
     const Cone&  cone,
     float sourceRadiance,  // L_i  (W/m²/sr)
@@ -248,7 +253,7 @@ float voxelEnergyFromConeLight(
     //  intersection segment length with the AABB).
     //
     float I_out_unused = 0.0f;
-    float absorbed = beerLambert_VoxelAbsorption(I_in, mu, voxel.dim, I_out_unused);
+    float absorbed = beerLambert_VoxelAbsorption(I_in, mu, Voxel_Size, I_out_unused);
 
     return absorbed;
 }
