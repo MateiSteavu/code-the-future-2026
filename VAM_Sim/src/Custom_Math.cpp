@@ -276,7 +276,7 @@ float Custom_Math::voxelEnergyFromConeLight(
     return energy_joules;  // Joules
 }
 
-float distance_voxel_to_margin(const Vector3& origin, const Voxel& voxel)
+float Custom_Math::distance_voxel_to_margin(const Vector3& origin, const Voxel& voxel)
 {
     Vector3 dir = voxel.getCenter() - origin;
 
