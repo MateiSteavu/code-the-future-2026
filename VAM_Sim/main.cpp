@@ -20,6 +20,10 @@ using std::vector;
 vector<vector<Voxel>> Obj;
 std::mutex obj_mutex;
 
+Vector3 worldOrigin = Vector3(0,0,0);
+// image corner relative to world center
+Vector3 imgOrigin = Vector3(DIST_DMD_PV, -DMD_Y_NR*MD_DIM_Y  , DMD_Z_NR*MD_DIM_Z);
+Vector3 imgCenter = Vector3(DIST_DMD_PV, -DMD_Y_NR*MD_DIM_Y/2, DMD_Z_NR*MD_DIM_Z/2);
 
 void processAngles(int start, int end, const vector<vector<Voxel>>& obj) {
     float thingy;
@@ -28,8 +32,7 @@ void processAngles(int start, int end, const vector<vector<Voxel>>& obj) {
     vector<vector<Voxel>> local_obj = obj;
 
     for (int i = start; i < end; i++) {
-
-        float theta = i * (PI / 180.0f);
+        float theta = i*(PI/180); // unghi in rad
 
         std::ostringstream oss;
         oss << "./projections/proj_angle_"
@@ -45,19 +48,22 @@ void processAngles(int start, int end, const vector<vector<Voxel>>& obj) {
         }
 
         for (int img_x = 0; img_x < 128; img_x++) {
-            Vector3 base = Custom_Math::pixelBaseX(img_x);
-            base.Rot_Z(theta);
 
             for (int img_y = 0; img_y < 128; img_y++) {
                 f >> thingy;
 
                 if (thingy != 0) {
-                    
-                    float py = Custom_Math::pixelOffsetY(img_y);
-                    Vector3 origin = base + Vector3(0.0f, py, 0.0f);
-                    origin.Rot_Z(theta);
-                    Vector3 dir = (Vector3(0,0,DIST_DMD_PV) - origin).normalize();
-                    Cone cone(origin, dir, RAY_Angle);
+
+                    Vector3 current_pixel  = imgOrigin;
+                    Vector3 rotated_origin = imgCenter;
+                    rotated_origin.Rot_Vector3(worldOrigin, theta);
+
+                    Ray  direction_ray  (rotated_origin, worldOrigin);
+                    Cone direction_cone (direction_ray,  RAY_Angle);
+
+                    current_pixel.setY(imgOrigin.getY()+img_x*MD_DIM_Y);
+                    current_pixel.setZ(imgOrigin.getZ()-img_y*MD_DIM_Z);
+                    current_pixel.Rot_Vector3(worldOrigin, theta);
 
                     for (int vi = 0; vi < (int)local_obj.size(); vi++) {
                         for (int vj = 0; vj < (int)local_obj[vi].size(); vj++) {
