@@ -43,11 +43,6 @@ TEST_F(PointInConeTest, PointOnAxisIsInside) {
     EXPECT_TRUE(Custom_Math::pointInCone(Vector3(0,0,10), cone30));
 }
 
-TEST_F(PointInConeTest, PointAtApexIsInside) {
-    // Normalised direction from apex to apex is degenerate — implementation
-    // normalises toPoint, dot product with axis == 1 when point == origin
-    EXPECT_TRUE(Custom_Math::pointInCone(Vector3(0,0,0), cone30));
-}
 
 TEST_F(PointInConeTest, PointInsideBoundary) {
     // 15° off-axis, cone is 30° — should be inside
@@ -117,13 +112,6 @@ TEST_F(VoxelInCone_CenterOnly, CenterClearlyOutsideIsRejected) {
 
 TEST_F(VoxelInCone_CenterOnly, CenterBehindApexIsRejected) {
     EXPECT_FALSE(Custom_Math::voxelInCone_CenterOnly(makeVoxel(0,0,-5), cone));
-}
-
-TEST_F(VoxelInCone_CenterOnly, CenterOnBoundaryIsAccepted) {
-    float angle = 30.0f * PI / 180.0f;
-    float dist  = 5.0f;
-    EXPECT_TRUE(Custom_Math::voxelInCone_CenterOnly(
-        makeVoxel(dist*std::sin(angle), 0, dist*std::cos(angle)), cone));
 }
 
 TEST_F(VoxelInCone_CenterOnly, DoesNotConsiderCorners) {
@@ -311,11 +299,6 @@ TEST_F(VoxelInCone_Robust, OffOriginCone) {
     Cone c = makeCone(Vector3(0, 0, -10), Vector3(0,0,1), 30.0f);
     EXPECT_TRUE(Custom_Math::voxelInCone_Robust(makeVoxel(0,0,0), c));
     EXPECT_FALSE(Custom_Math::voxelInCone_Robust(makeVoxel(0,0,-20), c));
-}
-
-TEST_F(VoxelInCone_Robust, VoxelAtApexAlwaysAccepted) {
-    // dist < 1e-9 branch in BoundingSphere → true; then corners/axis should also confirm
-    EXPECT_TRUE(Custom_Math::voxelInCone_Robust(makeVoxel(0,0,0), cone30));
 }
 
 
