@@ -31,6 +31,7 @@ void processAngles(int start, int end, const vector<vector<Voxel>>& obj) {
     // Each thread works on its own local copy — no locking needed during computation
     vector<vector<Voxel>> local_obj = obj;
 
+    Custom_Math cm;
     for (int i = start; i < end; i++) {
         float theta = i*(PI/180); // unghi in rad
 
@@ -73,8 +74,9 @@ void processAngles(int start, int end, const vector<vector<Voxel>>& obj) {
                             // @TODO: compute actual backprojection contribution
 
                             // Accumulate energy into the local copy
-                            float current = local_obj[vi][vj].getEnergy();
-                            local_obj[vi][vj].setEnergy(current + thingy);
+                            if(cm.voxelInCone_CenterOnly(Point)){
+                                Obj[vi][vj].setEnergy(Obj[vi][vj].getEnergy() + cm.voxelEnergyFromConeLight(Obj[vi][vj], cone, thingy * P_t_L, Exp_t));
+                            }
                         }
                     }
                 }
@@ -88,12 +90,18 @@ void processAngles(int start, int end, const vector<vector<Voxel>>& obj) {
     // Merge local result into global Obj — lock once per thread, not inside the loop
     {
         std::lock_guard<std::mutex> lock(obj_mutex);
+        std::ofstream g("./generated/test.csv");
         for (int vi = 0; vi < (int)Obj.size(); vi++) {
             for (int vj = 0; vj < (int)Obj[vi].size(); vj++) {
                 float merged = Obj[vi][vj].getEnergy() + local_obj[vi][vj].getEnergy();
                 Obj[vi][vj].setEnergy(merged);
+                if(Obj[vi][vj].getEnergy()>Energy_for_solid_Voxel)
+                    g   << Obj[vi][vj].getCenter().getX() << ','
+                        << Obj[vi][vj].getCenter().getY() << ','
+                        << Obj[vi][vj].getCenter().getZ() << '\n';
             }
         }
+        g.close();
     }
 }
 
