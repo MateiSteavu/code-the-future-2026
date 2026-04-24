@@ -43,6 +43,11 @@ TEST_F(PointInConeTest, PointOnAxisIsInside) {
     EXPECT_TRUE(Custom_Math::pointInCone(Vector3(0,0,10), cone30));
 }
 
+TEST_F(PointInConeTest, PointAtApexIsInside) {
+    // Normalised direction from apex to apex is degenerate — implementation
+    // normalises toPoint, dot product with axis == 1 when point == origin
+    EXPECT_TRUE(Custom_Math::pointInCone(Vector3(0,0,0), cone30));
+}
 
 TEST_F(PointInConeTest, PointInsideBoundary) {
     // 15° off-axis, cone is 30° — should be inside
@@ -112,6 +117,13 @@ TEST_F(VoxelInCone_CenterOnly, CenterClearlyOutsideIsRejected) {
 
 TEST_F(VoxelInCone_CenterOnly, CenterBehindApexIsRejected) {
     EXPECT_FALSE(Custom_Math::voxelInCone_CenterOnly(makeVoxel(0,0,-5), cone));
+}
+
+TEST_F(VoxelInCone_CenterOnly, CenterOnBoundaryIsAccepted) {
+    float angle = 30.0f * PI / 180.0f;
+    float dist  = 5.0f;
+    EXPECT_TRUE(Custom_Math::voxelInCone_CenterOnly(
+        makeVoxel(dist*std::sin(angle), 0, dist*std::cos(angle)), cone));
 }
 
 TEST_F(VoxelInCone_CenterOnly, DoesNotConsiderCorners) {
@@ -301,6 +313,11 @@ TEST_F(VoxelInCone_Robust, OffOriginCone) {
     EXPECT_FALSE(Custom_Math::voxelInCone_Robust(makeVoxel(0,0,-20), c));
 }
 
+TEST_F(VoxelInCone_Robust, VoxelAtApexAlwaysAccepted) {
+    // dist < 1e-9 branch in BoundingSphere → true; then corners/axis should also confirm
+    EXPECT_TRUE(Custom_Math::voxelInCone_Robust(makeVoxel(0,0,0), cone30));
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // beerLambert_VoxelAbsorption
@@ -308,31 +325,31 @@ TEST_F(VoxelInCone_Robust, OffOriginCone) {
 //   I_out is still W/m² (irradiance exiting the voxel).
 //   Return value is I_in*(1-T)*deltaTime  [J/m²].
 // ═══════════════════════════════════════════════════════════════════════════════
- 
+
 class BeerLambert : public ::testing::Test {
 protected:
     float I_out    = 0.0f;
     float dt       = 1.0f;   // 1 s default exposure
 };
- 
+
 TEST_F(BeerLambert, ZeroMuMeansNoAbsorption) {
     float joules = Custom_Math::beerLambert_VoxelAbsorption(100.0f, 0.0f, 1.0f, dt, I_out);
     EXPECT_NEAR(joules, 0.0f, 1e-4f);
     EXPECT_NEAR(I_out, 100.0f, 1e-4f);
 }
- 
+
 TEST_F(BeerLambert, ZeroPathLengthMeansNoAbsorption) {
     float joules = Custom_Math::beerLambert_VoxelAbsorption(100.0f, 1.0f, 0.0f, dt, I_out);
     EXPECT_NEAR(joules, 0.0f, 1e-4f);
     EXPECT_NEAR(I_out, 100.0f, 1e-4f);
 }
- 
+
 TEST_F(BeerLambert, ZeroIncomingMeansZeroAbsorbed) {
     float joules = Custom_Math::beerLambert_VoxelAbsorption(0.0f, 1.0f, 1.0f, dt, I_out);
     EXPECT_NEAR(joules, 0.0f, 1e-4f);
     EXPECT_NEAR(I_out, 0.0f, 1e-4f);
 }
- 
+
 TEST_F(BeerLambert, ZeroDeltaTimeMeansZeroJoules) {
     // No exposure time → zero energy deposited, but I_out should still be correct
     float joules = Custom_Math::beerLambert_VoxelAbsorption(100.0f, 1.0f, 1.0f, 0.0f, I_out);
@@ -340,7 +357,7 @@ TEST_F(BeerLambert, ZeroDeltaTimeMeansZeroJoules) {
     // I_out is transmittance-scaled irradiance, independent of dt
     EXPECT_NEAR(I_out, 100.0f * std::exp(-1.0f), 1e-3f);
 }
- 
+
 TEST_F(BeerLambert, EnergyConservation_JoulesEqualsPowerTimesDt) {
     // absorbed_joules == I_in * (1 - T) * dt  →  joules / dt + I_out == I_in
     float I_in    = 200.0f;
@@ -350,7 +367,7 @@ TEST_F(BeerLambert, EnergyConservation_JoulesEqualsPowerTimesDt) {
     // joules / dt is absorbed irradiance; I_out is transmitted irradiance
     EXPECT_NEAR(joules / dt + I_out, I_in, 1e-3f);
 }
- 
+
 TEST_F(BeerLambert, EnergyConservation_VariousParams) {
     for (float mu : {0.1f, 1.0f, 5.0f, 10.0f}) {
         float I_in   = 1.0f;
@@ -359,26 +376,26 @@ TEST_F(BeerLambert, EnergyConservation_VariousParams) {
             << "Failed energy conservation for mu=" << mu;
     }
 }
- 
+
 TEST_F(BeerLambert, HighAttenuation_AlmostAllAbsorbed) {
     float joules = Custom_Math::beerLambert_VoxelAbsorption(100.0f, 1000.0f, 1.0f, dt, I_out);
     EXPECT_NEAR(I_out,  0.0f,   1e-3f);
     EXPECT_NEAR(joules, 100.0f, 0.1f);   // nearly all 100 W/m² × 1 s = 100 J/m²
 }
- 
+
 TEST_F(BeerLambert, UnitOpticalDepth_I_outIsOneOverE) {
     // tau = mu * pathLen = 1 → T = 1/e;  I_out is T-scaled irradiance (W/m²)
     Custom_Math::beerLambert_VoxelAbsorption(1.0f, 1.0f, 1.0f, dt, I_out);
     EXPECT_NEAR(I_out, std::exp(-1.0f), 1e-5f);
 }
- 
+
 TEST_F(BeerLambert, UnitOpticalDepth_JoulesMatchFormula) {
     // joules = I_in * (1 - 1/e) * dt
     float I_in   = 1.0f;
     float joules = Custom_Math::beerLambert_VoxelAbsorption(I_in, 1.0f, 1.0f, dt, I_out);
     EXPECT_NEAR(joules, I_in * (1.0f - std::exp(-1.0f)) * dt, 1e-5f);
 }
- 
+
 TEST_F(BeerLambert, DoublePathLengthSquaresTransmittance) {
     // tau doubled → T squared → I_out halves twice
     float Io1, Io2;
@@ -386,35 +403,35 @@ TEST_F(BeerLambert, DoublePathLengthSquaresTransmittance) {
     Custom_Math::beerLambert_VoxelAbsorption(1.0f, 1.0f, 2.0f, dt, Io2);
     EXPECT_NEAR(Io2, Io1 * Io1, 1e-5f);
 }
- 
+
 TEST_F(BeerLambert, DoubleDeltaTimeDoublesJoules) {
     float j1 = Custom_Math::beerLambert_VoxelAbsorption(50.0f, 1.0f, 1.0f, 1.0f, I_out);
     float j2 = Custom_Math::beerLambert_VoxelAbsorption(50.0f, 1.0f, 1.0f, 2.0f, I_out);
     EXPECT_NEAR(j2, 2.0f * j1, 1e-4f);
 }
- 
+
 TEST_F(BeerLambert, JoulesAreNonNegative) {
     float joules = Custom_Math::beerLambert_VoxelAbsorption(50.0f, 0.5f, 2.0f, dt, I_out);
     EXPECT_GE(joules, 0.0f);
 }
- 
+
 TEST_F(BeerLambert, JoulesNeverExceedI_inTimesDt) {
     float I_in   = 50.0f;
     float joules = Custom_Math::beerLambert_VoxelAbsorption(I_in, 100.0f, 100.0f, dt, I_out);
     EXPECT_LE(joules, I_in * dt + 1e-3f);
 }
- 
+
 TEST_F(BeerLambert, I_outIsStrictlyLessThanI_in_WithPositiveMu) {
     Custom_Math::beerLambert_VoxelAbsorption(10.0f, 1.0f, 1.0f, dt, I_out);
     EXPECT_LT(I_out, 10.0f);
 }
- 
- 
+
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // voxelEnergyFromConeLight
 //   Signature: (voxel, cone, sourceRadiance, mu, T_path, deltaTime) -> Joules
 // ═══════════════════════════════════════════════════════════════════════════════
- 
+
 class VoxelEnergyFromCone : public ::testing::Test {
 protected:
     Cone  cone = makeCone(Vector3(0,0,0), Vector3(0,0,1), 30.0f);
@@ -422,56 +439,56 @@ protected:
     Voxel vOff = makeVoxel(0, 100, 0);    // 90° off — definitely outside cone
     float dt   = 1.0f;                    // default 1 s exposure
 };
- 
+
 TEST_F(VoxelEnergyFromCone, VoxelOutsideConeReturnsZero) {
     float e = Custom_Math::voxelEnergyFromConeLight(vOff, cone, 1.0f, 1.0f, 1.0f, dt);
     EXPECT_FLOAT_EQ(e, 0.0f);
 }
- 
+
 TEST_F(VoxelEnergyFromCone, VoxelInsideConeReturnsPositiveJoules) {
     float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 1.0f, dt);
     EXPECT_GT(e, 0.0f);
 }
- 
+
 TEST_F(VoxelEnergyFromCone, ZeroRadianceGivesZeroJoules) {
     float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 0.0f, 1.0f, 1.0f, dt);
     EXPECT_NEAR(e, 0.0f, 1e-6f);
 }
- 
+
 TEST_F(VoxelEnergyFromCone, ZeroTransmittanceGivesZeroJoules) {
     float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 0.0f, dt);
     EXPECT_NEAR(e, 0.0f, 1e-6f);
 }
- 
+
 TEST_F(VoxelEnergyFromCone, ZeroDeltaTimeGivesZeroJoules) {
     float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 1.0f, 0.0f);
     EXPECT_NEAR(e, 0.0f, 1e-6f);
 }
- 
+
 TEST_F(VoxelEnergyFromCone, ZeroMuGivesZeroJoules) {
     // mu=0 → T=1 → I_in*(1-1)*dt = 0 J
     float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 0.0f, 1.0f, dt);
     EXPECT_NEAR(e, 0.0f, 1e-5f);
 }
- 
+
 TEST_F(VoxelEnergyFromCone, HigherRadianceGivesProportionallyMoreJoules) {
     float e1 = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 1.0f, dt);
     float e2 = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 200.0f, 1.0f, 1.0f, dt);
     EXPECT_NEAR(e2, 2.0f * e1, 1e-3f);
 }
- 
+
 TEST_F(VoxelEnergyFromCone, HigherTransmittanceGivesProportionallyMoreJoules) {
     float e1 = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 0.5f, dt);
     float e2 = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 1.0f, dt);
     EXPECT_NEAR(e2, 2.0f * e1, 1e-3f);
 }
- 
+
 TEST_F(VoxelEnergyFromCone, DoubleDeltaTimeDoublesJoules) {
     float e1 = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 1.0f, 1.0f);
     float e2 = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 1.0f, 2.0f);
     EXPECT_NEAR(e2, 2.0f * e1, 1e-3f);
 }
- 
+
 TEST_F(VoxelEnergyFromCone, JoulesNeverExceedI_inTimesDt) {
     // Upper bound: all incoming irradiance absorbed × dt
     float L           = 100.0f;
@@ -482,18 +499,18 @@ TEST_F(VoxelEnergyFromCone, JoulesNeverExceedI_inTimesDt) {
     float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, L, mu, T, dt);
     EXPECT_LE(e, I_in * dt + 1e-3f);
 }
- 
+
 TEST_F(VoxelEnergyFromCone, JoulesAreNonNegative) {
     float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 50.0f, 2.0f, 0.5f, dt);
     EXPECT_GE(e, 0.0f);
 }
- 
+
 TEST_F(VoxelEnergyFromCone, HigherMuAbsorbsMoreJoules) {
     float e_low  = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f,  0.1f, 1.0f, dt);
     float e_high = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 10.0f, 1.0f, dt);
     EXPECT_GT(e_high, e_low);
 }
- 
+
 TEST_F(VoxelEnergyFromCone, WideConeAbsorbsMoreThanNarrowCone) {
     // Wider cone → larger solid angle → more irradiance arriving → more Joules
     Cone narrow = makeCone(Vector3(0,0,0), Vector3(0,0,1),  5.0f);
