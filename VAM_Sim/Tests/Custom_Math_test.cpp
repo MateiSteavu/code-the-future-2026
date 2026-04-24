@@ -534,7 +534,7 @@ TEST_F(DistanceVoxelToMarginTest, VoxelOnAxisInsideCylinderReturnsPositive)
 {
     Voxel v = makeVoxel(0.0f, 0.0f, 10.0f);
 
-    float d = distance_voxel_to_margin(originOutside, v);
+    float d = Custom_Math::distance_voxel_to_margin(originOutside, v);
 
     EXPECT_GT(d, 0.0f);
 }
@@ -543,7 +543,7 @@ TEST_F(DistanceVoxelToMarginTest, VoxelFarOutsideCylinderReturnsZero)
 {
     Voxel v = makeVoxel(R * 5.0f, 0.0f, 10.0f);
 
-    float d = distance_voxel_to_margin(originOutside, v);
+    float d = Custom_Math::distance_voxel_to_margin(originOutside, v);
 
     EXPECT_NEAR(d, 0.0f, 1e-5f);
 }
@@ -553,7 +553,7 @@ TEST_F(DistanceVoxelToMarginTest, VoxelNearBoundaryHasSmallDepth)
 {
     Voxel v = makeVoxel(R * 0.9f, 0.0f, 10.0f);
 
-    float d = distance_voxel_to_margin(originOutside, v);
+    float d = Custom_Math::distance_voxel_to_margin(originOutside, v);
 
     EXPECT_GT(d, 0.0f);
 }
@@ -563,8 +563,8 @@ TEST_F(DistanceVoxelToMarginTest, DeeperVoxelHasGreaterInsideDistance)
     Voxel near = makeVoxel(R * 0.9f, 0.0f, 10.0f);
     Voxel deep = makeVoxel(0.0f,      0.0f, 10.0f);
 
-    float d1 = distance_voxel_to_margin(originOutside, near);
-    float d2 = distance_voxel_to_margin(originOutside, deep);
+    float d1 = Custom_Math::distance_voxel_to_margin(originOutside, near);
+    float d2 = Custom_Math::distance_voxel_to_margin(originOutside, deep);
 
     EXPECT_GT(d2, d1);
 }
@@ -574,8 +574,8 @@ TEST_F(DistanceVoxelToMarginTest, FartherAlongRayIncreasesDepth)
     Voxel close = makeVoxel(0.0f, 0.0f, 10.0f);
     Voxel far   = makeVoxel(0.0f, 0.0f, 20.0f);
 
-    float d1 = distance_voxel_to_margin(originOutside, close);
-    float d2 = distance_voxel_to_margin(originOutside, far);
+    float d1 = Custom_Math::distance_voxel_to_margin(originOutside, close);
+    float d2 = Custom_Math::distance_voxel_to_margin(originOutside, far);
 
     EXPECT_GT(d2, d1);
 }
