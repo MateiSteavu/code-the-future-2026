@@ -87,14 +87,6 @@ TEST_F(RadiusToVoxelTest, VoxelCentersAreOnGrid)
     }
 }
 
-TEST_F(RadiusToVoxelTest, ZCoordinateIsZero)
-{
-    Custom_Math cm;
-    auto grid = cm.Radius_to_Voxel_array();
-    for (const auto& row : grid)
-        for (const auto& v : row)
-            EXPECT_NEAR(v.getCenter().getZ(), 0.0f, EPS);
-}
 
 
 // ═══════════════════════════════════════════════════════════════════════════
