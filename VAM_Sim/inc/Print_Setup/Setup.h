@@ -5,19 +5,19 @@
 #define MD_DIM_Y 0.1
 
 #define RAY_NR        4             //Number of rays per micromirror
-#define RAY_Angle   1.0             //Angle between rays
+#define RAY_Angle   0.2             //Half Angle
 
-#define DIST_DMD_PV  50             //Distance between DMD and print volume in mm
-#define Z_Offset_DMD 30             //Distance between min point of print volume and min point of DMD
+#define DIST_DMD_PV  150             //Distance between DMD and print volume in mm
+#define Z_Offset_DMD 50             //Distance between min point of print volume and min point of DMD
 
 #define Print_Radius 30             //mm
 #define Print_Height 40             //mm
 #define Voxel_Size    2             //mm
-#define mu            4             // attenuation coefficient (1/m)
+#define mu            0.3           // attenuation coefficient (1/m)
 #define P_t_L      0.85             //constant for turning pixel intensity to light intensity
-#define Exp_t       0.5             //s
+#define Exp_t       0.1             //Exposure time_s
 
-#define Energy_for_solid_Voxel 4    //Joules
+#define Energy_for_solid_Voxel 100    //Joules
 
 #define PI 3.14
 

@@ -23,9 +23,12 @@ std::mutex obj_mutex;       // Protects Obj during merges
 std::mutex csv_mutex;       // Protects CSV writes
 std::atomic<int> angles_done{0};
 
+Vector3 zAxis = Vector3(0, 0, 1);
 Vector3 worldOrigin = Vector3(0,0,0);
-Vector3 imgOrigin = Vector3(DIST_DMD_PV, -DMD_Y_NR*MD_DIM_Y, DMD_Z_NR*MD_DIM_Z);
-Vector3 imgCenter = Vector3(DIST_DMD_PV, -DMD_Y_NR*MD_DIM_Y/2, DMD_Z_NR*MD_DIM_Z/2);
+Vector3 imgOrigin = Vector3(DIST_DMD_PV, -DMD_Y_NR*MD_DIM_Y/2, DMD_Z_NR*MD_DIM_Z/2);
+Vector3 imgCenter = Vector3(DIST_DMD_PV, 0, Z_Offset_DMD);
+
+Vector3 current_pixel = imgOrigin;
 
 // Process a single angle, returns a local energy delta grid
 vector<vector<float>> processAngle(int i, Custom_Math& cm) {
@@ -44,7 +47,9 @@ vector<vector<float>> processAngle(int i, Custom_Math& cm) {
         std::cerr << "Skipping missing file: " << oss.str() << "\n";
         return local_delta;
     }
-
+    Vector3 v = imgCenter;
+    v.Rot_Vector3(zAxis, theta);
+    std::cout<<v.getX();
     float thingy;
     for (int img_x = 0; img_x < 128; img_x++) {
         if(img_x%20 == 0)
@@ -53,12 +58,10 @@ vector<vector<float>> processAngle(int i, Custom_Math& cm) {
             f >> thingy;
 
             if (thingy != 0) {
-                Vector3 zAxis = Vector3(0, 0, 1);
-                Vector3 current_pixel = imgOrigin;
                 Vector3 rotated_origin = imgCenter;
-                rotated_origin.Rot_Vector3(zAxis, theta);
+                rotated_origin.Rot_Vector3(zAxis, theta); // rotate origin around z axis
 
-                Ray direction_ray(rotated_origin, Vector3(-rotated_origin.getX(), -rotated_origin.getY(), 0));
+                Ray direction_ray(rotated_origin, Vector3(-rotated_origin.getX(), -rotated_origin.getY(), 0)); // generate ray dir
                 Cone direction_cone(direction_ray, RAY_Angle);
 
                 current_pixel.setY(imgOrigin.getY() + img_x * MD_DIM_Y);
@@ -73,7 +76,7 @@ vector<vector<float>> processAngle(int i, Custom_Math& cm) {
                         if (cm.voxelInCone_CenterOnly(Obj[vi][vj], pixel_cone)) {
                             // Write to local delta only — no shared state touched
                             local_delta[vi][vj] += cm.voxelEnergyFromConeLight(
-                                Obj[vi][vj], direction_cone, thingy * P_t_L, Exp_t);
+                                Obj[vi][vj], pixel_cone, thingy * P_t_L, Exp_t);
                         }
                     }
                 }
