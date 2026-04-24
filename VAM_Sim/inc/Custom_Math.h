@@ -19,16 +19,18 @@ class Custom_Math{
         static bool voxelInCone_BoundingSphere(const Voxel& voxel, const Cone& cone);
         static bool voxelInCone_CenterOnly(const Voxel& voxel, const Cone& cone);
         static bool pointInCone(const Vector3& point, const Cone& cone);
-        static float voxelEnergyFromConeLight(
+        static float Custom_Math::voxelEnergyFromConeLight(
             const Voxel& voxel,
             const Cone&  cone,
-            float sourceRadiance,
-            float mu,
-            float T_path);
-        static float beerLambert_VoxelAbsorption(
+            float sourceRadiance,   
+            float mu,               
+            float T_path,           
+            float deltaTime);
+        static float Custom_Math::beerLambert_VoxelAbsorption(
             float  I_in,        // incoming irradiance (W/m²)
             float  mu,          // attenuation coefficient (1/m)
             float  pathLength,  // ray segment length inside voxel (m)
+            float  deltaTime,   // exposure duration (s)
             float& I_out);
     private:
 };

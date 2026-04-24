@@ -170,90 +170,84 @@ bool Custom_Math::voxelInCone_Robust(const Voxel& voxel, const Cone& cone)
 
 
 // ============================================================
-//  Beer-Lambert energy deposition for one voxel
+//  Beer-Lambert energy deposition for one voxel — in JOULES
 // ============================================================
 //
-//  Given:
-//    I_in          — irradiance arriving at this voxel (W/m²)
-//                    already attenuated by all prior voxels along the ray
-//    mu            — attenuation coefficient of this voxel (m⁻¹)
-//                    mu = mu_absorption + mu_scattering
-//    pathLength    — length of the ray segment inside the voxel (m)
-//                    For a cube voxel on-axis: pathLength ≈ dim
+//  Added:
+//    deltaTime   — exposure duration (seconds)
 //
-//  Returns the energy absorbed by this voxel per unit area (W/m²).
-//  I_out is written to the reference so you can pass it to the next voxel.
+//  Energy (J) = Irradiance (W/m²) × face area (m²) × time (s)
+//  Face area of the voxel = Voxel_Size²  (square cross-section)
 //
 float Custom_Math::beerLambert_VoxelAbsorption(
     float  I_in,        // incoming irradiance (W/m²)
     float  mu,          // attenuation coefficient (1/m)
     float  pathLength,  // ray segment length inside voxel (m)
-    float& I_out)       // [out] irradiance exiting this voxel
+    float  deltaTime,   // exposure duration (s)
+    float& I_out)       // [out] irradiance exiting this voxel (W/m²)
 {
-    // Optical depth (dimensionless):  τ = μ · Δx
+    // Optical depth:  τ = μ · Δx  (dimensionless)
     float tau = mu * pathLength;
 
-    // Transmittance: fraction of light that passes through
+    // Transmittance: fraction of irradiance that passes through
     float T = std::exp(-tau);
 
-    // Irradiance that exits the voxel (passed to the next one)
+    // Irradiance exiting the voxel — passed to the next voxel in the ray
     I_out = I_in * T;
 
-    // Energy absorbed by this voxel = what came in minus what left
-    float absorbed = I_in * (1.0f - T);
+    // Absorbed irradiance (W/m²): what came in minus what left
+    float I_absorbed = I_in * (1.0f - T);
 
-    return absorbed;
+    // Cross-sectional face area of the voxel (m²)
+    float faceArea = Voxel_Size * Voxel_Size;
+
+    // Convert to energy: Power (W) = Irradiance (W/m²) × Area (m²)
+    //                    Energy (J) = Power (W) × Time (s)
+    float energy_joules = I_absorbed * faceArea * deltaTime;
+
+    return energy_joules;  // Joules
 }
 
 
-
-
 // ============================================================
-//  Full energy received by a voxel from a cone light source
+//  Full energy received by a voxel from a cone light source — in JOULES
 // ============================================================
 //
-//  Combines the solid-angle test with Beer-Lambert.
-//
-//  Parameters:
-//    voxel          — the voxel to test
-//    cone           — light cone (apex = light position)
-//    sourceRadiance — L_i, radiance of the light source (W/m²/sr)
-//    mu             — attenuation coefficient of the voxel (1/m)
-//    T_path         — accumulated transmittance from light to this voxel
-//                     (product of e^{-τ} for all voxels along the path so far)
-//
-//  Returns the irradiance deposited into the voxel (W/m²),
-//  or 0 if the voxel is not illuminated by this cone.
+//  Added:
+//    deltaTime   — exposure duration (seconds)
 //
 float Custom_Math::voxelEnergyFromConeLight(
     const Voxel& voxel,
     const Cone&  cone,
-    float sourceRadiance,  // L_i  (W/m²/sr)
-    float mu,              // attenuation coefficient of this voxel (1/m)
-    float T_path)          // transmittance accumulated before this voxel
+    float sourceRadiance,   // L_i  (W/m²/sr)
+    float mu,               // attenuation coefficient of this voxel (1/m)
+    float T_path,           // transmittance accumulated before this voxel
+    float deltaTime)        // exposure duration (s)
 {
     // ---- Step 1: Is this voxel inside the cone? ----
     if (!voxelInCone_Robust(voxel, cone))
         return 0.0f;
 
-    // ---- Step 2: Irradiance arriving at the voxel ----
+    // ---- Step 2: Irradiance arriving at the voxel (W/m²) ----
     //
-    //  Convert radiance → irradiance by integrating over the solid angle:
-    //    E = L_i * Ω          (for a uniform source within the cone)
-    //  Then apply the path transmittance (all the voxels before this one):
-    //    I_in = E * T_path
+    //  Radiance → Irradiance: E = L_i × Ω
+    //  Apply path transmittance (occlusion by prior voxels): × T_path
     //
     float solidAngle = cone.solidAngle();           // Ω = 2π(1 - cos θ)
     float I_in       = sourceRadiance * solidAngle * T_path;
 
-    // ---- Step 3: Beer-Lambert absorption inside this voxel ----
+    // ---- Step 3: Beer-Lambert → absorbed energy in Joules ----
     //
-    //  Use the voxel's side length as the path length (assumes ray is
-    //  roughly axis-aligned; for oblique rays, adjust to the actual
-    //  intersection segment length with the AABB).
+    //  beerLambert_VoxelAbsorption now returns Joules directly.
     //
     float I_out_unused = 0.0f;
-    float absorbed = beerLambert_VoxelAbsorption(I_in, mu, Voxel_Size, I_out_unused);
+    float energy_joules = beerLambert_VoxelAbsorption(
+        I_in,
+        mu,
+        Voxel_Size,   // path length through the voxel (m)
+        deltaTime,    // exposure duration (s)
+        I_out_unused
+    );
 
-    return absorbed;
+    return energy_joules;  // Joules
 }
