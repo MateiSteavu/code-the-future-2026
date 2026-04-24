@@ -141,7 +141,7 @@ int main() {
         thread_angles[i % NUM_THREADS].push_back(i);
 
     // 3. Open CSV once
-    std::ofstream g("./generated/test.csv");
+    std::ofstream g("./python/test.csv");
 
     // 4. Launch threads
     vector<std::thread> threads;
