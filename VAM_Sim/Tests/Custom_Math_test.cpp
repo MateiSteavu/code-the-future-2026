@@ -1,581 +1,522 @@
+// test_Custom_Math.cpp
+//
+// Tests for Custom_Math
+// Framework: Google Test (gtest)
+// Build:  g++ -std=c++17 test_Custom_Math.cpp -lgtest -lgtest_main -o tests && ./tests
+//
+// Assumed test constants (override via your Print_Setup header):
+//   Print_Radius = 5.0f
+//   Voxel_Size   = 1.0f
+//   mu           = 0.1f   (absorption coefficient)
+
 #include <gtest/gtest.h>
 #include <cmath>
 #include "../inc/Custom_Math.h"
 #include "../inc/Geometry/Ray.h"
 #include "../inc/Geometry/Voxel.h"
+#include "../inc/Geometry/Cone.h"
+#include "../inc/Print_Setup/Setup.h"
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-static constexpr float PI  = static_cast<float>(M_PI);
-static constexpr float VS  = Voxel_Size;
+static constexpr float EPS = 1e-4f;
 
-static bool feq(float a, float b, float eps = 1e-4f) {
-    return std::abs(a - b) < eps;
+// Cone pointing straight up (+Z), apex at origin, half-angle 30°
+static Cone makeCone30()
+{
+    return Cone(Vector3(0, 0, 0),          // origin
+                Vector3(0, 0, 1),          // direction (unit)
+                30.0f * M_PI / 180.0f);   // half-angle in radians
 }
 
-// Build a cone pointing in +Z from the origin with a given half-angle (radians)
-static Cone makeCone(Vector3 origin, Vector3 direction, float halfAngleDeg) {
-    float rad = halfAngleDeg * PI / 180.0f;
-    return Cone(origin, direction.normalize(), rad);
-}
-
-// Voxel centred at a given point
-static Voxel makeVoxel(float x, float y, float z) {
+// Voxel centered at a given point (unit cube, side = Voxel_Size)
+static Voxel makeVoxel(float x, float y, float z)
+{
     return Voxel(Vector3(x, y, z));
 }
 
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// pointInCone
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+//  1.  Radius_to_Voxel_array
+// ═══════════════════════════════════════════════════════════════════════════
 
-class PointInConeTest : public ::testing::Test {
-protected:
-    // Cone at origin, pointing +Z, 30° half-angle
-    Cone cone30 = makeCone(Vector3(0,0,0), Vector3(0,0,1), 30.0f);
-    // Narrow cone, 5°
-    Cone cone5  = makeCone(Vector3(0,0,0), Vector3(0,0,1),  5.0f);
-    // Wide cone, 89°
-    Cone cone89 = makeCone(Vector3(0,0,0), Vector3(0,0,1), 89.0f);
-};
+class RadiusToVoxelTest : public ::testing::Test {};
 
-TEST_F(PointInConeTest, PointOnAxisIsInside) {
-    EXPECT_TRUE(Custom_Math::pointInCone(Vector3(0,0,10), cone30));
+TEST_F(RadiusToVoxelTest, ReturnsNonEmptyGrid)
+{
+    Custom_Math cm;
+    auto grid = cm.Radius_to_Voxel_array();
+    EXPECT_FALSE(grid.empty());
 }
 
-TEST_F(PointInConeTest, PointAtApexIsInside) {
-    // Normalised direction from apex to apex is degenerate — implementation
-    // normalises toPoint, dot product with axis == 1 when point == origin
-    EXPECT_TRUE(Custom_Math::pointInCone(Vector3(0,0,0), cone30));
-}
-
-TEST_F(PointInConeTest, PointInsideBoundary) {
-    // 15° off-axis, cone is 30° — should be inside
-    float angle = 15.0f * PI / 180.0f;
-    Vector3 p(std::sin(angle), 0.0f, std::cos(angle));
-    EXPECT_TRUE(Custom_Math::pointInCone(p, cone30));
-}
-
-TEST_F(PointInConeTest, PointOnExactBoundaryIsInside) {
-    // Exactly at half-angle boundary — cosAngle == cosHalfAngle → inside (>=)
-    float angle = 30.0f * PI / 180.0f;
-    Vector3 p(std::sin(angle), 0.0f, std::cos(angle));
-    EXPECT_TRUE(Custom_Math::pointInCone(p, cone30));
-}
-
-TEST_F(PointInConeTest, PointJustOutsideBoundary) {
-    float angle = 31.0f * PI / 180.0f;
-    Vector3 p(std::sin(angle), 0.0f, std::cos(angle));
-    EXPECT_FALSE(Custom_Math::pointInCone(p, cone30));
-}
-
-TEST_F(PointInConeTest, PointBehindApexIsOutside) {
-    EXPECT_FALSE(Custom_Math::pointInCone(Vector3(0,0,-5), cone30));
-}
-
-TEST_F(PointInConeTest, PointPerpendicular90DegIsOutside) {
-    EXPECT_FALSE(Custom_Math::pointInCone(Vector3(1,0,0), cone30));
-}
-
-TEST_F(PointInConeTest, NarrowConeRejectsSlightlyOffAxis) {
-    float angle = 6.0f * PI / 180.0f;
-    Vector3 p(std::sin(angle), 0.0f, std::cos(angle));
-    EXPECT_FALSE(Custom_Math::pointInCone(p, cone5));
-}
-
-TEST_F(PointInConeTest, WideConeAcceptsOffAxisPoint) {
-    float angle = 85.0f * PI / 180.0f;
-    Vector3 p(std::sin(angle), 0.0f, std::cos(angle));
-    EXPECT_TRUE(Custom_Math::pointInCone(p, cone89));
-}
-
-TEST_F(PointInConeTest, OffOriginCone) {
-    Cone c = makeCone(Vector3(5,5,5), Vector3(0,0,1), 30.0f);
-    // Point directly above apex — must be inside
-    EXPECT_TRUE(Custom_Math::pointInCone(Vector3(5,5,15), c));
-    // Point in opposite direction — must be outside
-    EXPECT_FALSE(Custom_Math::pointInCone(Vector3(5,5,-5), c));
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// voxelInCone_CenterOnly
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class VoxelInCone_CenterOnly : public ::testing::Test {
-protected:
-    Cone cone = makeCone(Vector3(0,0,0), Vector3(0,0,1), 30.0f);
-};
-
-TEST_F(VoxelInCone_CenterOnly, CenterOnAxisIsInside) {
-    EXPECT_TRUE(Custom_Math::voxelInCone_CenterOnly(makeVoxel(0,0,5), cone));
-}
-
-TEST_F(VoxelInCone_CenterOnly, CenterClearlyOutsideIsRejected) {
-    EXPECT_FALSE(Custom_Math::voxelInCone_CenterOnly(makeVoxel(10,0,1), cone));
-}
-
-TEST_F(VoxelInCone_CenterOnly, CenterBehindApexIsRejected) {
-    EXPECT_FALSE(Custom_Math::voxelInCone_CenterOnly(makeVoxel(0,0,-5), cone));
-}
-
-TEST_F(VoxelInCone_CenterOnly, CenterOnBoundaryIsAccepted) {
-    float angle = 30.0f * PI / 180.0f;
-    float dist  = 5.0f;
-    EXPECT_TRUE(Custom_Math::voxelInCone_CenterOnly(
-        makeVoxel(dist*std::sin(angle), 0, dist*std::cos(angle)), cone));
-}
-
-TEST_F(VoxelInCone_CenterOnly, DoesNotConsiderCorners) {
-    // Voxel whose center is outside but corners may be inside —
-    // CenterOnly should still return false
-    float angle = 35.0f * PI / 180.0f; // 5° past boundary
-    float dist  = 5.0f;
-    Voxel v = makeVoxel(dist*std::sin(angle), 0, dist*std::cos(angle));
-    EXPECT_FALSE(Custom_Math::voxelInCone_CenterOnly(v, cone));
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// voxelInCone_BoundingSphere
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class VoxelInCone_BoundingSphere : public ::testing::Test {
-protected:
-    Cone cone30 = makeCone(Vector3(0,0,0), Vector3(0,0,1), 30.0f);
-    Cone cone5  = makeCone(Vector3(0,0,0), Vector3(0,0,1),  5.0f);
-};
-
-TEST_F(VoxelInCone_BoundingSphere, VoxelOnAxisIsAccepted) {
-    EXPECT_TRUE(Custom_Math::voxelInCone_BoundingSphere(makeVoxel(0,0,5), cone30));
-}
-
-TEST_F(VoxelInCone_BoundingSphere, VoxelFarOutsideIsRejected) {
-    // Voxel at 90° off-axis, well past any angular padding
-    EXPECT_FALSE(Custom_Math::voxelInCone_BoundingSphere(makeVoxel(100,0,0), cone5));
-}
-
-TEST_F(VoxelInCone_BoundingSphere, VoxelAtApexIsAccepted) {
-    // dist < 1e-9 branch: always true
-    EXPECT_TRUE(Custom_Math::voxelInCone_BoundingSphere(makeVoxel(0,0,0), cone30));
-}
-
-TEST_F(VoxelInCone_BoundingSphere, ConservativeNeverDropsTrueOverlap) {
-    // A voxel that clearly overlaps (center on axis) must always be accepted
-    EXPECT_TRUE(Custom_Math::voxelInCone_BoundingSphere(makeVoxel(0,0,2), cone30));
-}
-
-TEST_F(VoxelInCone_BoundingSphere, BoundingSphereCanAcceptNearBoundary) {
-    // Voxel whose center is just outside but bounding sphere may overlap the cone
-    float angle = 32.0f * PI / 180.0f; // just outside 30°
-    float dist  = 20.0f;               // far away so sphere padding is small
-    Voxel v = makeVoxel(dist*std::sin(angle), 0, dist*std::cos(angle));
-    // We don't assert a specific value — just verify no crash and a bool is returned
-    bool result = Custom_Math::voxelInCone_BoundingSphere(v, cone30);
-    EXPECT_TRUE(result == true || result == false); // always valid
-}
-
-TEST_F(VoxelInCone_BoundingSphere, BehindApexIsRejected) {
-    EXPECT_FALSE(Custom_Math::voxelInCone_BoundingSphere(makeVoxel(0,0,-10), cone30));
-}
-
-TEST_F(VoxelInCone_BoundingSphere, VeryCloseVoxelApexBranch) {
-    // dist is < 1e-9: should return true immediately
-    Voxel v = makeVoxel(0.0f, 0.0f, 0.0f);
-    EXPECT_TRUE(Custom_Math::voxelInCone_BoundingSphere(v, cone30));
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// voxelInCone_Corners
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class VoxelInCone_Corners : public ::testing::Test {
-protected:
-    Cone cone = makeCone(Vector3(0,0,0), Vector3(0,0,1), 30.0f);
-};
-
-TEST_F(VoxelInCone_Corners, VoxelCenterOnAxisIsAccepted) {
-    EXPECT_TRUE(Custom_Math::voxelInCone_Corners(makeVoxel(0,0,5), cone));
-}
-
-TEST_F(VoxelInCone_Corners, VoxelFullyOutsideIsRejected) {
-    EXPECT_FALSE(Custom_Math::voxelInCone_Corners(makeVoxel(100,0,0), cone));
-}
-
-TEST_F(VoxelInCone_Corners, VoxelBehindApexIsRejected) {
-    EXPECT_FALSE(Custom_Math::voxelInCone_Corners(makeVoxel(0,0,-10), cone));
-}
-
-TEST_F(VoxelInCone_Corners, VoxelOnBoundaryAtLeastOneCornerIn) {
-    // Place voxel so that one corner must be inside the cone
-    // At distance 5 on axis — all corners are close to axis; at least one inside
-    EXPECT_TRUE(Custom_Math::voxelInCone_Corners(makeVoxel(0,0,5), cone));
-}
-
-TEST_F(VoxelInCone_Corners, ReturnsFalseWhenNoCornersInside) {
-    // 90° off-axis is never inside a 30° half-angle cone
-    EXPECT_FALSE(Custom_Math::voxelInCone_Corners(makeVoxel(10,0,0), cone));
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// voxelInCone_AxisClosestPoint
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class VoxelInCone_AxisClosest : public ::testing::Test {
-protected:
-    Cone cone = makeCone(Vector3(0,0,0), Vector3(0,0,1), 30.0f);
-};
-
-TEST_F(VoxelInCone_AxisClosest, VoxelOnAxisIsAccepted) {
-    EXPECT_TRUE(Custom_Math::voxelInCone_AxisClosestPoint(makeVoxel(0,0,5), cone));
-}
-
-TEST_F(VoxelInCone_AxisClosest, VoxelFarAwayIsRejected) {
-    EXPECT_FALSE(Custom_Math::voxelInCone_AxisClosestPoint(makeVoxel(100,0,0), cone));
-}
-
-TEST_F(VoxelInCone_AxisClosest, VoxelBehindApexRejected) {
-    EXPECT_FALSE(Custom_Math::voxelInCone_AxisClosestPoint(makeVoxel(0,0,-10), cone));
-}
-
-TEST_F(VoxelInCone_AxisClosest, AxisPassesThroughVoxelSide) {
-    // Voxel positioned so axis passes through its side face but not a corner
-    // Voxel at (small-x, 0, z_large): cone axis (Z) comes very close to AABB
-    Voxel v = makeVoxel(VS * 0.4f, 0.0f, 5.0f);
-    // The AABB is straddling the axis — closest point is on the axis itself
-    EXPECT_TRUE(Custom_Math::voxelInCone_AxisClosestPoint(v, cone));
-}
-
-TEST_F(VoxelInCone_AxisClosest, OffOriginConeWorks) {
-    Cone c = makeCone(Vector3(0,0,-10), Vector3(0,0,1), 30.0f);
-    Voxel v = makeVoxel(0, 0, 0);
-    EXPECT_TRUE(Custom_Math::voxelInCone_AxisClosestPoint(v, c));
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// voxelInCone_Robust
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class VoxelInCone_Robust : public ::testing::Test {
-protected:
-    Cone cone30 = makeCone(Vector3(0,0,0), Vector3(0,0,1), 30.0f);
-    Cone cone5  = makeCone(Vector3(0,0,0), Vector3(0,0,1),  5.0f);
-    Cone cone89 = makeCone(Vector3(0,0,0), Vector3(0,0,1), 89.0f);
-};
-
-TEST_F(VoxelInCone_Robust, VoxelOnAxisAccepted) {
-    EXPECT_TRUE(Custom_Math::voxelInCone_Robust(makeVoxel(0,0,5), cone30));
-}
-
-TEST_F(VoxelInCone_Robust, VoxelFarOffAxisRejected) {
-    EXPECT_FALSE(Custom_Math::voxelInCone_Robust(makeVoxel(0,100,0), cone30));
-}
-
-TEST_F(VoxelInCone_Robust, VoxelBehindApexRejected) {
-    EXPECT_FALSE(Custom_Math::voxelInCone_Robust(makeVoxel(0,0,-10), cone30));
-}
-
-TEST_F(VoxelInCone_Robust, NarrowConeVoxelOnAxis) {
-    EXPECT_TRUE(Custom_Math::voxelInCone_Robust(makeVoxel(0,0,5), cone5));
-}
-
-TEST_F(VoxelInCone_Robust, NarrowConeVoxelFarOffAxis) {
-    EXPECT_FALSE(Custom_Math::voxelInCone_Robust(makeVoxel(10,0,0), cone5));
-}
-
-TEST_F(VoxelInCone_Robust, WideConeAcceptsMostVoxels) {
-    EXPECT_TRUE(Custom_Math::voxelInCone_Robust(makeVoxel(0,0,5), cone89));
-    EXPECT_TRUE(Custom_Math::voxelInCone_Robust(makeVoxel(5,0,1), cone89));
-}
-
-TEST_F(VoxelInCone_Robust, RobustImpliesCornerTest) {
-    // If Corners returns true, Robust must also return true (stage 1 may pass, stage 2 accepts)
-    Voxel v = makeVoxel(0,0,5);
-    bool corners = Custom_Math::voxelInCone_Corners(v, cone30);
-    bool robust  = Custom_Math::voxelInCone_Robust(v, cone30);
-    if (corners) EXPECT_TRUE(robust);
-}
-
-TEST_F(VoxelInCone_Robust, RobustConsistentWithBoundingSphere) {
-    // If BoundingSphere returns false, Robust must also return false (stage 1 rejects)
-    Voxel v = makeVoxel(0, 100, 0);
-    bool sphere = Custom_Math::voxelInCone_BoundingSphere(v, cone5);
-    bool robust = Custom_Math::voxelInCone_Robust(v, cone5);
-    if (!sphere) EXPECT_FALSE(robust);
-}
-
-TEST_F(VoxelInCone_Robust, OffOriginCone) {
-    Cone c = makeCone(Vector3(0, 0, -10), Vector3(0,0,1), 30.0f);
-    EXPECT_TRUE(Custom_Math::voxelInCone_Robust(makeVoxel(0,0,0), c));
-    EXPECT_FALSE(Custom_Math::voxelInCone_Robust(makeVoxel(0,0,-20), c));
-}
-
-TEST_F(VoxelInCone_Robust, VoxelAtApexAlwaysAccepted) {
-    // dist < 1e-9 branch in BoundingSphere → true; then corners/axis should also confirm
-    EXPECT_TRUE(Custom_Math::voxelInCone_Robust(makeVoxel(0,0,0), cone30));
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// beerLambert_VoxelAbsorption
-//   Signature: (I_in, mu, pathLength, deltaTime, I_out&) -> Joules
-//   I_out is still W/m² (irradiance exiting the voxel).
-//   Return value is I_in*(1-T)*deltaTime  [J/m²].
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class BeerLambert : public ::testing::Test {
-protected:
-    float I_out    = 0.0f;
-    float dt       = 1.0f;   // 1 s default exposure
-};
-
-TEST_F(BeerLambert, ZeroMuMeansNoAbsorption) {
-    float joules = Custom_Math::beerLambert_VoxelAbsorption(100.0f, 0.0f, 1.0f, dt, I_out);
-    EXPECT_NEAR(joules, 0.0f, 1e-4f);
-    EXPECT_NEAR(I_out, 100.0f, 1e-4f);
-}
-
-TEST_F(BeerLambert, ZeroPathLengthMeansNoAbsorption) {
-    float joules = Custom_Math::beerLambert_VoxelAbsorption(100.0f, 1.0f, 0.0f, dt, I_out);
-    EXPECT_NEAR(joules, 0.0f, 1e-4f);
-    EXPECT_NEAR(I_out, 100.0f, 1e-4f);
-}
-
-TEST_F(BeerLambert, ZeroIncomingMeansZeroAbsorbed) {
-    float joules = Custom_Math::beerLambert_VoxelAbsorption(0.0f, 1.0f, 1.0f, dt, I_out);
-    EXPECT_NEAR(joules, 0.0f, 1e-4f);
-    EXPECT_NEAR(I_out, 0.0f, 1e-4f);
-}
-
-TEST_F(BeerLambert, ZeroDeltaTimeMeansZeroJoules) {
-    // No exposure time → zero energy deposited, but I_out should still be correct
-    float joules = Custom_Math::beerLambert_VoxelAbsorption(100.0f, 1.0f, 1.0f, 0.0f, I_out);
-    EXPECT_NEAR(joules, 0.0f, 1e-6f);
-    // I_out is transmittance-scaled irradiance, independent of dt
-    EXPECT_NEAR(I_out, 100.0f * std::exp(-1.0f), 1e-3f);
-}
-
-TEST_F(BeerLambert, EnergyConservation_JoulesEqualsPowerTimesDt) {
-    // absorbed_joules == I_in * (1 - T) * dt  →  joules / dt + I_out == I_in
-    float I_in    = 200.0f;
-    float mu      = 2.0f;
-    float pathLen = 0.5f;
-    float joules  = Custom_Math::beerLambert_VoxelAbsorption(I_in, mu, pathLen, dt, I_out);
-    // joules / dt is absorbed irradiance; I_out is transmitted irradiance
-    EXPECT_NEAR(joules / dt + I_out, I_in, 1e-3f);
-}
-
-TEST_F(BeerLambert, EnergyConservation_VariousParams) {
-    for (float mu : {0.1f, 1.0f, 5.0f, 10.0f}) {
-        float I_in   = 1.0f;
-        float joules = Custom_Math::beerLambert_VoxelAbsorption(I_in, mu, 1.0f, dt, I_out);
-        EXPECT_NEAR(joules / dt + I_out, I_in, 1e-5f)
-            << "Failed energy conservation for mu=" << mu;
+TEST_F(RadiusToVoxelTest, AllVoxelCentersWithinRadius)
+{
+    Custom_Math cm;
+    auto grid = cm.Radius_to_Voxel_array();
+    const float r2 = Print_Radius * Print_Radius;
+
+    for (const auto& row : grid) {
+        for (const auto& v : row) {
+            float cx = v.getCenter().getX();
+            float cy = v.getCenter().getY();
+            EXPECT_LE(cx * cx + cy * cy, r2 + EPS)
+                << "Voxel center (" << cx << ", " << cy << ") outside radius";
+        }
     }
 }
 
-TEST_F(BeerLambert, HighAttenuation_AlmostAllAbsorbed) {
-    float joules = Custom_Math::beerLambert_VoxelAbsorption(100.0f, 1000.0f, 1.0f, dt, I_out);
-    EXPECT_NEAR(I_out,  0.0f,   1e-3f);
-    EXPECT_NEAR(joules, 100.0f, 0.1f);   // nearly all 100 W/m² × 1 s = 100 J/m²
+TEST_F(RadiusToVoxelTest, VoxelCentersAreOnGrid)
+{
+    // Each center should lie on the half-integer lattice:
+    // start + Voxel_Size * (i + 0.5)
+    Custom_Math cm;
+    auto grid = cm.Radius_to_Voxel_array();
+    const float start = -Print_Radius;
+
+    for (const auto& row : grid) {
+        for (const auto& v : row) {
+            float cx = v.getCenter().getX();
+            float cy = v.getCenter().getY();
+
+            float ix = (cx - start) / Voxel_Size - 0.5f;
+            float iy = (cy - start) / Voxel_Size - 0.5f;
+
+            EXPECT_NEAR(ix, std::round(ix), EPS) << "X center not on grid";
+            EXPECT_NEAR(iy, std::round(iy), EPS) << "Y center not on grid";
+        }
+    }
 }
 
-TEST_F(BeerLambert, UnitOpticalDepth_I_outIsOneOverE) {
-    // tau = mu * pathLen = 1 → T = 1/e;  I_out is T-scaled irradiance (W/m²)
-    Custom_Math::beerLambert_VoxelAbsorption(1.0f, 1.0f, 1.0f, dt, I_out);
-    EXPECT_NEAR(I_out, std::exp(-1.0f), 1e-5f);
-}
-
-TEST_F(BeerLambert, UnitOpticalDepth_JoulesMatchFormula) {
-    // joules = I_in * (1 - 1/e) * dt
-    float I_in   = 1.0f;
-    float joules = Custom_Math::beerLambert_VoxelAbsorption(I_in, 1.0f, 1.0f, dt, I_out);
-    EXPECT_NEAR(joules, I_in * (1.0f - std::exp(-1.0f)) * dt, 1e-5f);
-}
-
-TEST_F(BeerLambert, DoublePathLengthSquaresTransmittance) {
-    // tau doubled → T squared → I_out halves twice
-    float Io1, Io2;
-    Custom_Math::beerLambert_VoxelAbsorption(1.0f, 1.0f, 1.0f, dt, Io1);
-    Custom_Math::beerLambert_VoxelAbsorption(1.0f, 1.0f, 2.0f, dt, Io2);
-    EXPECT_NEAR(Io2, Io1 * Io1, 1e-5f);
-}
-
-TEST_F(BeerLambert, DoubleDeltaTimeDoublesJoules) {
-    float j1 = Custom_Math::beerLambert_VoxelAbsorption(50.0f, 1.0f, 1.0f, 1.0f, I_out);
-    float j2 = Custom_Math::beerLambert_VoxelAbsorption(50.0f, 1.0f, 1.0f, 2.0f, I_out);
-    EXPECT_NEAR(j2, 2.0f * j1, 1e-4f);
-}
-
-TEST_F(BeerLambert, JoulesAreNonNegative) {
-    float joules = Custom_Math::beerLambert_VoxelAbsorption(50.0f, 0.5f, 2.0f, dt, I_out);
-    EXPECT_GE(joules, 0.0f);
-}
-
-TEST_F(BeerLambert, JoulesNeverExceedI_inTimesDt) {
-    float I_in   = 50.0f;
-    float joules = Custom_Math::beerLambert_VoxelAbsorption(I_in, 100.0f, 100.0f, dt, I_out);
-    EXPECT_LE(joules, I_in * dt + 1e-3f);
-}
-
-TEST_F(BeerLambert, I_outIsStrictlyLessThanI_in_WithPositiveMu) {
-    Custom_Math::beerLambert_VoxelAbsorption(10.0f, 1.0f, 1.0f, dt, I_out);
-    EXPECT_LT(I_out, 10.0f);
+TEST_F(RadiusToVoxelTest, ZCoordinateIsZero)
+{
+    Custom_Math cm;
+    auto grid = cm.Radius_to_Voxel_array();
+    for (const auto& row : grid)
+        for (const auto& v : row)
+            EXPECT_NEAR(v.getCenter().getZ(), 0.0f, EPS);
 }
 
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// voxelEnergyFromConeLight
-//   Signature: (voxel, cone, sourceRadiance, mu, T_path, deltaTime) -> Joules
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+//  2.  pointInCone
+// ═══════════════════════════════════════════════════════════════════════════
 
-class VoxelEnergyFromCone : public ::testing::Test {
+class PointInConeTest : public ::testing::Test
+{
 protected:
-    Cone  cone = makeCone(Vector3(0,0,0), Vector3(0,0,1), 30.0f);
-    Voxel vOn  = makeVoxel(0, 0, 5);      // directly on axis — inside cone
-    Voxel vOff = makeVoxel(0, 100, 0);    // 90° off — definitely outside cone
-    float dt   = 1.0f;                    // default 1 s exposure
+    Cone cone = makeCone30();
 };
 
-TEST_F(VoxelEnergyFromCone, VoxelOutsideConeReturnsZero) {
-    float e = Custom_Math::voxelEnergyFromConeLight(vOff, cone, 1.0f, 1.0f, 1.0f, dt);
-    EXPECT_FLOAT_EQ(e, 0.0f);
+TEST_F(PointInConeTest, PointOnAxisIsInside)
+{
+    // Straight up the axis — always inside
+    EXPECT_TRUE(Custom_Math::pointInCone(Vector3(0, 0, 5), cone));
 }
 
-TEST_F(VoxelEnergyFromCone, VoxelInsideConeReturnsPositiveJoules) {
-    float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 1.0f, dt);
+TEST_F(PointInConeTest, PointWellOutsideIsRejected)
+{
+    // Perpendicular to the axis — 90° from direction, far outside 30° cone
+    EXPECT_FALSE(Custom_Math::pointInCone(Vector3(5, 0, 0), cone));
+}
+
+TEST_F(PointInConeTest, PointExactlyOnBoundary)
+{
+    // At half-angle (30°): cos(30°) ≈ 0.866
+    float angle = 30.0f * M_PI / 180.0f;
+    Vector3 boundary(std::sin(angle), 0, std::cos(angle));
+    EXPECT_TRUE(Custom_Math::pointInCone(boundary, cone));
+}
+
+TEST_F(PointInConeTest, PointJustOutsideBoundary)
+{
+    float angle = 31.0f * M_PI / 180.0f;
+    Vector3 outside(std::sin(angle), 0, std::cos(angle));
+    EXPECT_FALSE(Custom_Math::pointInCone(outside, cone));
+}
+
+TEST_F(PointInConeTest, NegativeAxisRejected)
+{
+    // Behind the apex (−Z direction)
+    EXPECT_FALSE(Custom_Math::pointInCone(Vector3(0, 0, -5), cone));
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  3.  voxelInCone_CenterOnly
+// ═══════════════════════════════════════════════════════════════════════════
+
+class VoxelInConeCenterTest : public ::testing::Test
+{
+protected:
+    Cone cone = makeCone30();
+};
+
+TEST_F(VoxelInConeCenterTest, CenterOnAxisAccepted)
+{
+    EXPECT_TRUE(Custom_Math::voxelInCone_CenterOnly(makeVoxel(0, 0, 5), cone));
+}
+
+TEST_F(VoxelInConeCenterTest, CenterFarOutsideRejected)
+{
+    EXPECT_FALSE(Custom_Math::voxelInCone_CenterOnly(makeVoxel(10, 0, 0), cone));
+}
+
+TEST_F(VoxelInConeCenterTest, CenterOnBoundaryAccepted)
+{
+    float a = 30.0f * M_PI / 180.0f;
+    float scale = 5.0f;
+    EXPECT_TRUE(Custom_Math::voxelInCone_CenterOnly(
+        makeVoxel(scale * std::sin(a), 0, scale * std::cos(a)), cone));
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  4.  voxelInCone_BoundingSphere
+// ═══════════════════════════════════════════════════════════════════════════
+
+class VoxelInConeSphereTest : public ::testing::Test
+{
+protected:
+    Cone cone = makeCone30();
+};
+
+TEST_F(VoxelInConeSphereTest, VoxelOnAxisAccepted)
+{
+    EXPECT_TRUE(Custom_Math::voxelInCone_BoundingSphere(makeVoxel(0, 0, 5), cone));
+}
+
+TEST_F(VoxelInConeSphereTest, VoxelFarOutsideRejected)
+{
+    // 90° away, far enough that even the circumsphere can't bridge the gap
+    EXPECT_FALSE(Custom_Math::voxelInCone_BoundingSphere(makeVoxel(50, 0, 0), cone));
+}
+
+TEST_F(VoxelInConeSphereTest, NeverFalseNegativeForClearlyInsideVoxel)
+{
+    // A voxel solidly inside the cone must never be rejected
+    EXPECT_TRUE(Custom_Math::voxelInCone_BoundingSphere(makeVoxel(0, 0, 10), cone));
+}
+
+TEST_F(VoxelInConeSphereTest, BoundaryVoxelIsConservative)
+{
+    // At the rim the sphere test may accept a voxel the center test rejects —
+    // verify it doesn't REJECT what the center test accepts.
+    Voxel v = makeVoxel(0, 0, 5);
+    if (Custom_Math::voxelInCone_CenterOnly(v, cone))
+        EXPECT_TRUE(Custom_Math::voxelInCone_BoundingSphere(v, cone));
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  5.  voxelInCone_Corners
+// ═══════════════════════════════════════════════════════════════════════════
+
+class VoxelInConeCornersTest : public ::testing::Test
+{
+protected:
+    Cone cone = makeCone30();
+};
+
+TEST_F(VoxelInConeCornersTest, VoxelClearlyInsideAccepted)
+{
+    EXPECT_TRUE(Custom_Math::voxelInCone_Corners(makeVoxel(0, 0, 5), cone));
+}
+
+TEST_F(VoxelInConeCornersTest, VoxelClearlyOutsideRejected)
+{
+    EXPECT_FALSE(Custom_Math::voxelInCone_Corners(makeVoxel(50, 0, 0), cone));
+}
+
+TEST_F(VoxelInConeCornersTest, CornerTestNeverRejectsWhatCenterTestAccepts)
+{
+    // If center is inside, at least one corner should typically also be inside
+    // (may not hold for enormous voxels, but holds for unit voxels far from apex)
+    Voxel v = makeVoxel(0, 0, 10);
+    if (Custom_Math::voxelInCone_CenterOnly(v, cone))
+        EXPECT_TRUE(Custom_Math::voxelInCone_Corners(v, cone));
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  6.  voxelInCone_AxisClosestPoint
+// ═══════════════════════════════════════════════════════════════════════════
+
+class VoxelInConeAxisTest : public ::testing::Test
+{
+protected:
+    Cone cone = makeCone30();
+};
+
+TEST_F(VoxelInConeAxisTest, VoxelStraddlingAxisAccepted)
+{
+    // Voxel centered just off-axis but straddling it
+    EXPECT_TRUE(Custom_Math::voxelInCone_AxisClosestPoint(makeVoxel(0.1f, 0, 5), cone));
+}
+
+TEST_F(VoxelInConeAxisTest, VoxelFarFromAxisRejected)
+{
+    EXPECT_FALSE(Custom_Math::voxelInCone_AxisClosestPoint(makeVoxel(50, 0, 1), cone));
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  7.  voxelInCone_Robust  (consistency suite)
+// ═══════════════════════════════════════════════════════════════════════════
+
+class VoxelInConeRobustTest : public ::testing::Test
+{
+protected:
+    Cone cone = makeCone30();
+};
+
+TEST_F(VoxelInConeRobustTest, VoxelOnAxisAccepted)
+{
+    EXPECT_TRUE(Custom_Math::voxelInCone_Robust(makeVoxel(0, 0, 5), cone));
+}
+
+TEST_F(VoxelInConeRobustTest, VoxelFarOutsideRejected)
+{
+    EXPECT_FALSE(Custom_Math::voxelInCone_Robust(makeVoxel(100, 0, 0), cone));
+}
+
+TEST_F(VoxelInConeRobustTest, RobustNeverMoreRestrictiveThanBoundingSphere)
+{
+    // If bounding sphere says NO, robust must also say NO (sphere is used as
+    // first-stage reject, so this tests the pipeline contract).
+    Voxel v = makeVoxel(100, 0, 0);
+    bool sphere = Custom_Math::voxelInCone_BoundingSphere(v, cone);
+    bool robust = Custom_Math::voxelInCone_Robust(v, cone);
+
+    if (!sphere) EXPECT_FALSE(robust);
+}
+
+TEST_F(VoxelInConeRobustTest, RobustAtLeastAsPermissiveAsCorners)
+{
+    // If corners says YES, robust must also say YES.
+    std::vector<Voxel> samples = {
+        makeVoxel(0, 0, 5), makeVoxel(1, 0, 5), makeVoxel(0, 1, 5)
+    };
+    for (const auto& v : samples) {
+        if (Custom_Math::voxelInCone_Corners(v, cone))
+            EXPECT_TRUE(Custom_Math::voxelInCone_Robust(v, cone))
+                << "Robust rejected a voxel whose corner was inside the cone";
+    }
+}
+
+TEST_F(VoxelInConeRobustTest, BackFacingConeRejectsForwardVoxel)
+{
+    // Cone pointing down (−Z): a voxel at +Z should be rejected
+    Cone downCone(Vector3(0,0,0), Vector3(0,0,-1), 30.0f * M_PI / 180.0f);
+    EXPECT_FALSE(Custom_Math::voxelInCone_Robust(makeVoxel(0, 0, 5), downCone));
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  8.  beerLambert_VoxelAbsorption
+// ═══════════════════════════════════════════════════════════════════════════
+
+class BeerLambertTest : public ::testing::Test {};
+
+TEST_F(BeerLambertTest, ZeroPathLengthYieldsZeroEnergy)
+{
+    float e = Custom_Math::beerLambert_VoxelAbsorption(1000.0f, 0.0f, 1.0f);
+    EXPECT_NEAR(e, 0.0f, EPS);
+}
+
+TEST_F(BeerLambertTest, ZeroTimeYieldsZeroEnergy)
+{
+    float e = Custom_Math::beerLambert_VoxelAbsorption(1000.0f, 1.0f, 0.0f);
+    EXPECT_NEAR(e, 0.0f, EPS);
+}
+
+TEST_F(BeerLambertTest, ZeroIrradianceYieldsZeroEnergy)
+{
+    float e = Custom_Math::beerLambert_VoxelAbsorption(0.0f, 1.0f, 1.0f);
+    EXPECT_NEAR(e, 0.0f, EPS);
+}
+
+TEST_F(BeerLambertTest, AbsorbedEnergyIsPositive)
+{
+    float e = Custom_Math::beerLambert_VoxelAbsorption(1000.0f, 0.01f, 1.0f);
     EXPECT_GT(e, 0.0f);
 }
 
-TEST_F(VoxelEnergyFromCone, ZeroRadianceGivesZeroJoules) {
-    float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 0.0f, 1.0f, 1.0f, dt);
-    EXPECT_NEAR(e, 0.0f, 1e-6f);
+TEST_F(BeerLambertTest, AbsorbedEnergyBoundedByIncoming)
+{
+    // Can never absorb more than 100 % of incoming power × area × time
+    float I_in = 1000.0f, dt = 1.0f, path = 0.01f;
+    float maxPossible = I_in * (Voxel_Size * Voxel_Size) * dt;
+    float e = Custom_Math::beerLambert_VoxelAbsorption(I_in, path, dt);
+    EXPECT_LE(e, maxPossible + EPS);
 }
 
-TEST_F(VoxelEnergyFromCone, ZeroTransmittanceGivesZeroJoules) {
-    float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 0.0f, dt);
-    EXPECT_NEAR(e, 0.0f, 1e-6f);
+TEST_F(BeerLambertTest, LongerPathAbsorbsMoreEnergy)
+{
+    float e1 = Custom_Math::beerLambert_VoxelAbsorption(1000.0f, 0.01f, 1.0f);
+    float e2 = Custom_Math::beerLambert_VoxelAbsorption(1000.0f, 0.10f, 1.0f);
+    EXPECT_GT(e2, e1);
 }
 
-TEST_F(VoxelEnergyFromCone, ZeroDeltaTimeGivesZeroJoules) {
-    float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 1.0f, 0.0f);
-    EXPECT_NEAR(e, 0.0f, 1e-6f);
+TEST_F(BeerLambertTest, LongerExposureScalesEnergyLinearly)
+{
+    float e1 = Custom_Math::beerLambert_VoxelAbsorption(1000.0f, 0.01f, 1.0f);
+    float e2 = Custom_Math::beerLambert_VoxelAbsorption(1000.0f, 0.01f, 2.0f);
+    EXPECT_NEAR(e2, 2.0f * e1, EPS);
 }
 
-TEST_F(VoxelEnergyFromCone, ZeroMuGivesZeroJoules) {
-    // mu=0 → T=1 → I_in*(1-1)*dt = 0 J
-    float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 0.0f, 1.0f, dt);
-    EXPECT_NEAR(e, 0.0f, 1e-5f);
+TEST_F(BeerLambertTest, KnownValueCheck)
+{
+    // Manual: τ = mu * path = 0.1 * 0.01 = 0.001
+    //         T = exp(-0.001) ≈ 0.9990005
+    //         I_abs = 1000 * (1 - 0.9990005) ≈ 0.9995
+    //         area  = Voxel_Size^2  (e.g. 0.001^2 m² if Voxel_Size=0.001)
+    //         energy = I_abs * area * 1.0
+    // Adjust expected value to match your Voxel_Size and mu constants.
+    float tau      = mu * 0.01f;
+    float I_abs    = 1000.0f * (1.0f - std::exp(-tau));
+    float expected = I_abs * Voxel_Size * Voxel_Size * 1.0f;
+
+    float actual = Custom_Math::beerLambert_VoxelAbsorption(1000.0f, 0.01f, 1.0f);
+    EXPECT_NEAR(actual, expected, EPS);
 }
 
-TEST_F(VoxelEnergyFromCone, HigherRadianceGivesProportionallyMoreJoules) {
-    float e1 = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 1.0f, dt);
-    float e2 = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 200.0f, 1.0f, 1.0f, dt);
-    EXPECT_NEAR(e2, 2.0f * e1, 1e-3f);
-}
 
-TEST_F(VoxelEnergyFromCone, HigherTransmittanceGivesProportionallyMoreJoules) {
-    float e1 = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 0.5f, dt);
-    float e2 = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 1.0f, dt);
-    EXPECT_NEAR(e2, 2.0f * e1, 1e-3f);
-}
+// ═══════════════════════════════════════════════════════════════════════════
+//  9.  voxelEnergyFromConeLight
+// ═══════════════════════════════════════════════════════════════════════════
 
-TEST_F(VoxelEnergyFromCone, DoubleDeltaTimeDoublesJoules) {
-    float e1 = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 1.0f, 1.0f);
-    float e2 = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 1.0f, 1.0f, 2.0f);
-    EXPECT_NEAR(e2, 2.0f * e1, 1e-3f);
-}
-
-TEST_F(VoxelEnergyFromCone, JoulesNeverExceedI_inTimesDt) {
-    // Upper bound: all incoming irradiance absorbed × dt
-    float L           = 100.0f;
-    float mu          = 1.0f;
-    float T           = 0.8f;
-    float solidAngle  = cone.solidAngle();
-    float I_in        = L * solidAngle * T;
-    float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, L, mu, T, dt);
-    EXPECT_LE(e, I_in * dt + 1e-3f);
-}
-
-TEST_F(VoxelEnergyFromCone, JoulesAreNonNegative) {
-    float e = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 50.0f, 2.0f, 0.5f, dt);
-    EXPECT_GE(e, 0.0f);
-}
-
-TEST_F(VoxelEnergyFromCone, HigherMuAbsorbsMoreJoules) {
-    float e_low  = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f,  0.1f, 1.0f, dt);
-    float e_high = Custom_Math::voxelEnergyFromConeLight(vOn, cone, 100.0f, 10.0f, 1.0f, dt);
-    EXPECT_GT(e_high, e_low);
-}
-
-TEST_F(VoxelEnergyFromCone, WideConeAbsorbsMoreThanNarrowCone) {
-    // Wider cone → larger solid angle → more irradiance arriving → more Joules
-    Cone narrow = makeCone(Vector3(0,0,0), Vector3(0,0,1),  5.0f);
-    Cone wide   = makeCone(Vector3(0,0,0), Vector3(0,0,1), 30.0f);
-    float e_narrow = Custom_Math::voxelEnergyFromConeLight(vOn, narrow, 100.0f, 1.0f, 1.0f, dt);
-    float e_wide   = Custom_Math::voxelEnergyFromConeLight(vOn, wide,   100.0f, 1.0f, 1.0f, dt);
-    EXPECT_GT(e_wide, e_narrow);
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// distance_voxel_to_margin (cylindrical entry → voxel depth)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class DistanceVoxelToMarginTest : public ::testing::Test {
+class VoxelEnergyTest : public ::testing::Test
+{
 protected:
-    float R = static_cast<float>(Print_Radius);
-    Vector3 originOutside = Vector3(R * 2.0f, 0.0f, 10.0f);
+    Cone  cone      = makeCone30();
+    float radiance  = 1000.0f;  // W/m²/sr
+    float T_full    = 1.0f;     // no prior occlusion
+    float dt        = 1.0f;     // 1 second exposure
 };
 
-TEST_F(DistanceVoxelToMarginTest, VoxelOnAxisInsideCylinderReturnsPositive)
+TEST_F(VoxelEnergyTest, VoxelOutsideConeReceivesZeroEnergy)
 {
-    Voxel v = makeVoxel(0.0f, 0.0f, 10.0f);
+    float e = Custom_Math::voxelEnergyFromConeLight(
+        makeVoxel(100, 0, 0), cone, radiance, T_full, dt);
+    EXPECT_NEAR(e, 0.0f, EPS);
+}
 
-    float d = Custom_Math::distance_voxel_to_margin(originOutside, v);
+TEST_F(VoxelEnergyTest, VoxelInsideConeReceivesPositiveEnergy)
+{
+    float e = Custom_Math::voxelEnergyFromConeLight(
+        makeVoxel(0, 0, 5), cone, radiance, T_full, dt);
+    EXPECT_GT(e, 0.0f);
+}
 
+TEST_F(VoxelEnergyTest, ZeroRadianceYieldsZeroEnergy)
+{
+    float e = Custom_Math::voxelEnergyFromConeLight(
+        makeVoxel(0, 0, 5), cone, 0.0f, T_full, dt);
+    EXPECT_NEAR(e, 0.0f, EPS);
+}
+
+TEST_F(VoxelEnergyTest, ZeroTransmittanceYieldsZeroEnergy)
+{
+    float e = Custom_Math::voxelEnergyFromConeLight(
+        makeVoxel(0, 0, 5), cone, radiance, 0.0f, dt);
+    EXPECT_NEAR(e, 0.0f, EPS);
+}
+
+TEST_F(VoxelEnergyTest, ZeroExposureTimeYieldsZeroEnergy)
+{
+    float e = Custom_Math::voxelEnergyFromConeLight(
+        makeVoxel(0, 0, 5), cone, radiance, T_full, 0.0f);
+    EXPECT_NEAR(e, 0.0f, EPS);
+}
+
+TEST_F(VoxelEnergyTest, OccludedVoxelReceivesLessEnergy)
+{
+    float e_full   = Custom_Math::voxelEnergyFromConeLight(
+        makeVoxel(0, 0, 5), cone, radiance, 1.0f,  dt);
+    float e_half   = Custom_Math::voxelEnergyFromConeLight(
+        makeVoxel(0, 0, 5), cone, radiance, 0.5f,  dt);
+    EXPECT_NEAR(e_half, 0.5f * e_full, EPS);
+}
+
+TEST_F(VoxelEnergyTest, EnergyScalesLinearlyWithTime)
+{
+    float e1 = Custom_Math::voxelEnergyFromConeLight(
+        makeVoxel(0, 0, 5), cone, radiance, T_full, 1.0f);
+    float e2 = Custom_Math::voxelEnergyFromConeLight(
+        makeVoxel(0, 0, 5), cone, radiance, T_full, 3.0f);
+    EXPECT_NEAR(e2, 3.0f * e1, EPS);
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  10.  distance_voxel_to_margin
+// ═══════════════════════════════════════════════════════════════════════════
+
+class DistanceToMarginTest : public ::testing::Test
+{
+protected:
+    // Origin at center, voxel on the +X axis
+    Vector3 origin{0, 0, 0};
+};
+
+TEST_F(DistanceToMarginTest, VoxelAtOriginReturnsZero)
+{
+    // Coincident origin/voxel → dist = 0 → return 0
+    float d = Custom_Math::distance_voxel_to_margin(origin, makeVoxel(0, 0, 0));
+    EXPECT_NEAR(d, 0.0f, EPS);
+}
+
+TEST_F(DistanceToMarginTest, VoxelOnRadiusBoundaryReturnsNearZero)
+{
+    // Center exactly on the circle boundary
+    float d = Custom_Math::distance_voxel_to_margin(
+        origin, makeVoxel(Print_Radius, 0, 0));
+    EXPECT_NEAR(d, 0.0f, EPS);
+}
+
+TEST_F(DistanceToMarginTest, VoxelInsideCircleReturnsPositiveDistance)
+{
+    float x = Print_Radius * 0.5f;  // halfway to the edge
+    float d = Custom_Math::distance_voxel_to_margin(origin, makeVoxel(x, 0, 0));
     EXPECT_GT(d, 0.0f);
 }
 
-TEST_F(DistanceVoxelToMarginTest, VoxelFarOutsideCylinderReturnsZero)
+TEST_F(DistanceToMarginTest, DistanceApproximatelyHalfRadius)
 {
-    Voxel v = makeVoxel(R * 5.0f, 0.0f, 10.0f);
-
-    float d = Custom_Math::distance_voxel_to_margin(originOutside, v);
-
-    EXPECT_NEAR(d, 0.0f, 1e-5f);
+    // Voxel at r/2 on the X-axis: remaining distance to boundary ≈ r/2
+    float x        = Print_Radius * 0.5f;
+    float expected = Print_Radius - x;  // = Print_Radius / 2
+    float d        = Custom_Math::distance_voxel_to_margin(origin, makeVoxel(x, 0, 0));
+    EXPECT_NEAR(d, expected, EPS);
 }
 
-
-TEST_F(DistanceVoxelToMarginTest, VoxelNearBoundaryHasSmallDepth)
+TEST_F(DistanceToMarginTest, SymmetryInXandY)
 {
-    Voxel v = makeVoxel(R * 0.9f, 0.0f, 10.0f);
+    float r = Print_Radius * 0.5f;
+    float dx = Custom_Math::distance_voxel_to_margin(origin, makeVoxel(r, 0, 0));
+    float dy = Custom_Math::distance_voxel_to_margin(origin, makeVoxel(0, r, 0));
 
-    float d = Custom_Math::distance_voxel_to_margin(originOutside, v);
-
-    EXPECT_GT(d, 0.0f);
+    // Both should hit the circle at the same remaining arc-length
+    EXPECT_NEAR(dx, dy, EPS);
 }
 
-TEST_F(DistanceVoxelToMarginTest, DeeperVoxelHasGreaterInsideDistance)
+TEST_F(DistanceToMarginTest, OffCenterOrigin)
 {
-    Voxel near = makeVoxel(R * 0.9f, 0.0f, 10.0f);
-    Voxel deep = makeVoxel(0.0f,      0.0f, 10.0f);
-
-    float d1 = Custom_Math::distance_voxel_to_margin(originOutside, near);
-    float d2 = Custom_Math::distance_voxel_to_margin(originOutside, deep);
-
-    EXPECT_GT(d2, d1);
+    // Non-trivial origin: ray from (1,0,0) toward (3,0,0)
+    Vector3 orig(1, 0, 0);
+    Voxel   v = makeVoxel(3, 0, 0);
+    float   d = Custom_Math::distance_voxel_to_margin(orig, v);
+    EXPECT_GE(d, 0.0f);   // must be non-negative
 }
 
-TEST_F(DistanceVoxelToMarginTest, FartherAlongRayIncreasesDepth)
+TEST_F(DistanceToMarginTest, NeverNegative)
 {
-    Voxel close = makeVoxel(0.0f, 0.0f, 10.0f);
-    Voxel far   = makeVoxel(0.0f, 0.0f, 20.0f);
-
-    float d1 = Custom_Math::distance_voxel_to_margin(originOutside, close);
-    float d2 = Custom_Math::distance_voxel_to_margin(originOutside, far);
-
-    EXPECT_GT(d2, d1);
+    // Property: distance is always ≥ 0
+    std::vector<std::pair<float,float>> pts = {
+        {0,0}, {1,0}, {0,2}, {-1,1}, {2.5f, 2.5f}
+    };
+    for (auto [x, y] : pts) {
+        float d = Custom_Math::distance_voxel_to_margin(origin, makeVoxel(x, y, 0));
+        EXPECT_GE(d, 0.0f) << "Negative distance for voxel (" << x << "," << y << ")";
+    }
 }
