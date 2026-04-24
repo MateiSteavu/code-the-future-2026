@@ -55,24 +55,21 @@ int main() {
         for (int img_x = 0; img_x < 128; img_x++) {
             for (int img_y = 0; img_y < 128; img_y++) {
                 f >> thingy;
-
+                
                 // Only process pixels that have light contribution
                 if (thingy != 0) {
                     // Geometric Setup
+                    Vector3 zAxis = Vector3(0, 0, 1);
                     Vector3 current_pixel = imgOrigin;
                     Vector3 rotated_origin = imgCenter;
-                    rotated_origin.Rot_Vector3(worldOrigin, theta);
-
-                    Ray direction_ray(rotated_origin, worldOrigin);
+                    rotated_origin.Rot_Vector3(zAxis, theta);
+                    Ray direction_ray(rotated_origin, Vector3(-rotated_origin.getX(),-rotated_origin.getY(),0));
                     Cone direction_cone(direction_ray, RAY_Angle);
-
                     current_pixel.setY(imgOrigin.getY() + img_x * MD_DIM_Y);
                     current_pixel.setZ(imgOrigin.getZ() - img_y * MD_DIM_Z);
-                    current_pixel.Rot_Vector3(worldOrigin, theta);
-
-                    Ray pixel_ray(current_pixel, worldOrigin);
+                    current_pixel.Rot_Vector3(zAxis, theta);
+                    Ray pixel_ray(current_pixel, Vector3(-rotated_origin.getX(),-rotated_origin.getY(),0));
                     Cone pixel_cone(pixel_ray, RAY_Angle);
-
                     // Voxel Update Loop
                     for (int vi = 0; vi < (int)Obj.size(); vi++) {
                         for (int vj = 0; vj < (int)Obj[vi].size(); vj++) {
