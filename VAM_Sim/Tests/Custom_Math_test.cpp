@@ -388,62 +388,63 @@ TEST_F(BeerLambertTest, KnownValueCheck)
 class VoxelEnergyTest : public ::testing::Test
 {
 protected:
-    Cone  cone      = makeCone30();
-    float radiance  = 1000.0f;  // W/m²/sr
-    float T_full    = 1.0f;     // no prior occlusion
-    float dt        = 1.0f;     // 1 second exposure
+    Cone  cone     = makeCone30();
+    float radiance = 1000.0f;  // W/m²/sr
+    float dt       = 1.0f;     // 1 second exposure
+    // T_path removed – now derived internally from geometry
 };
 
 TEST_F(VoxelEnergyTest, VoxelOutsideConeReceivesZeroEnergy)
 {
     float e = Custom_Math::voxelEnergyFromConeLight(
-        makeVoxel(100, 0, 0), cone, radiance, T_full, dt);
+        makeVoxel(100, 0, 0), cone, radiance, dt);
     EXPECT_NEAR(e, 0.0f, EPS);
 }
 
 TEST_F(VoxelEnergyTest, VoxelInsideConeReceivesPositiveEnergy)
 {
     float e = Custom_Math::voxelEnergyFromConeLight(
-        makeVoxel(0, 0, 5), cone, radiance, T_full, dt);
+        makeVoxel(0, 0, 5), cone, radiance, dt);
     EXPECT_GT(e, 0.0f);
 }
 
 TEST_F(VoxelEnergyTest, ZeroRadianceYieldsZeroEnergy)
 {
     float e = Custom_Math::voxelEnergyFromConeLight(
-        makeVoxel(0, 0, 5), cone, 0.0f, T_full, dt);
+        makeVoxel(0, 0, 5), cone, 0.0f, dt);
     EXPECT_NEAR(e, 0.0f, EPS);
 }
 
-TEST_F(VoxelEnergyTest, ZeroTransmittanceYieldsZeroEnergy)
-{
-    float e = Custom_Math::voxelEnergyFromConeLight(
-        makeVoxel(0, 0, 5), cone, radiance, 0.0f, dt);
-    EXPECT_NEAR(e, 0.0f, EPS);
-}
+// Replaces ZeroTransmittanceYieldsZeroEnergy:
+// A voxel sitting exactly on the cylinder margin has BC = 0,
+// so T_path = exp(-μ·0) = 1.0 — maximum possible energy.
+// A voxel deeper inside must receive strictly less.
 
 TEST_F(VoxelEnergyTest, ZeroExposureTimeYieldsZeroEnergy)
 {
     float e = Custom_Math::voxelEnergyFromConeLight(
-        makeVoxel(0, 0, 5), cone, radiance, T_full, 0.0f);
+        makeVoxel(0, 0, 5), cone, radiance, 0.0f);
     EXPECT_NEAR(e, 0.0f, EPS);
 }
 
-TEST_F(VoxelEnergyTest, OccludedVoxelReceivesLessEnergy)
+// Replaces OccludedVoxelReceivesLessEnergy (which relied on T_path as input):
+// Transmittance is now geometric — a voxel deeper inside the cylinder
+// accumulates more optical depth (larger BC) and must receive less energy.
+TEST_F(VoxelEnergyTest, DeeperVoxelReceivesLessEnergy)
 {
-    float e_full   = Custom_Math::voxelEnergyFromConeLight(
-        makeVoxel(0, 0, 5), cone, radiance, 1.0f,  dt);
-    float e_half   = Custom_Math::voxelEnergyFromConeLight(
-        makeVoxel(0, 0, 5), cone, radiance, 0.5f,  dt);
-    EXPECT_NEAR(e_half, 0.5f * e_full, EPS);
+    float e_near = Custom_Math::voxelEnergyFromConeLight(
+        makeVoxel(0, 0, 2), cone, radiance, dt);   // small BC
+    float e_far  = Custom_Math::voxelEnergyFromConeLight(
+        makeVoxel(0, 0, 8), cone, radiance, dt);   // large BC
+    EXPECT_GT(e_near, e_far);
 }
 
 TEST_F(VoxelEnergyTest, EnergyScalesLinearlyWithTime)
 {
     float e1 = Custom_Math::voxelEnergyFromConeLight(
-        makeVoxel(0, 0, 5), cone, radiance, T_full, 1.0f);
+        makeVoxel(0, 0, 5), cone, radiance, 1.0f);
     float e2 = Custom_Math::voxelEnergyFromConeLight(
-        makeVoxel(0, 0, 5), cone, radiance, T_full, 3.0f);
+        makeVoxel(0, 0, 5), cone, radiance, 3.0f);
     EXPECT_NEAR(e2, 3.0f * e1, EPS);
 }
 
