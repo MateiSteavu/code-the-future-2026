@@ -7,6 +7,30 @@
 #include <algorithm>
 #include <array>
 
+vector<vector<Voxel>> Custom_Math::Radius_to_Voxel_array()
+{
+    const float start  = -Print_Radius;
+    const int   n      = static_cast<int>(std::ceil(2.0f * Print_Radius / Voxel_Size));
+    const float r2     = Print_Radius * Print_Radius;
+ 
+    vector<vector<Voxel>> grid(n);
+ 
+    for (int i = 0; i < n; ++i) {
+        grid[i].reserve(n);
+        for (int j = 0; j < n; ++j) {
+            float cx = start + Voxel_Size * (i + 0.5f);
+            float cy = start + Voxel_Size * (j + 0.5f);
+
+            if (cx * cx + cy * cy <= r2) {
+                Voxel v(Vector3(cx, cy, 0));
+                grid[i].push_back(v);
+            }
+        }
+    }
+ 
+    return grid;
+}
+
 bool Custom_Math::pointInCone(const Vector3& point, const Cone& cone)
 {
     Vector3 toPoint = (point - cone.getOrigin()).normalize();

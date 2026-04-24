@@ -3,8 +3,13 @@ cmake_minimum_required(VERSION 3.22)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project(VAM_SIM LANGUAGES CXX)
+find_package(Threads REQUIRED)
+
+
+
 add_executable(${CMAKE_PROJECT_NAME})
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE main.cpp)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE geometry custom_math Threads::Threads)
 
 
 #Libraries
@@ -16,6 +21,7 @@ add_library(geometry
 )
 target_include_directories(geometry PUBLIC 
   ${PROJECT_SOURCE_DIR}/inc/Geometry
+  ${PROJECT_SOURCE_DIR}/inc/Print_Setup
 )
 
 add_library(custom_math
@@ -24,6 +30,7 @@ add_library(custom_math
 target_include_directories(custom_math PUBLIC 
   ${PROJECT_SOURCE_DIR}/inc/
 )
+target_link_libraries(custom_math PRIVATE geometry) 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE geometry custom_math)
 
 
