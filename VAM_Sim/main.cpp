@@ -25,11 +25,11 @@ Vector3 worldOrigin = Vector3(0,0,0);
 Vector3 imgOrigin = Vector3(DIST_DMD_PV, -DMD_Y_NR*MD_DIM_Y  , DMD_Z_NR*MD_DIM_Z);
 Vector3 imgCenter = Vector3(DIST_DMD_PV, -DMD_Y_NR*MD_DIM_Y/2, DMD_Z_NR*MD_DIM_Z/2);
 
-void processAngles(int start, int end, const vector<vector<Voxel>>& obj) {
+void processAngles(int start, int end) {
     float thingy;
 
     // Each thread works on its own local copy — no locking needed during computation
-    vector<vector<Voxel>> local_obj = obj;
+    vector<vector<float>> local_energy(Obj.size(), vector<float>(Obj[0].size(), 0.0f));
 
     Custom_Math cm;
     for (int i = start; i < end; i++) {
@@ -69,15 +69,15 @@ void processAngles(int start, int end, const vector<vector<Voxel>>& obj) {
                     Ray  pixel_ray      (current_pixel,  worldOrigin);
                     Cone pixel_cone     (pixel_ray,      RAY_Angle);
 
-                    for (int vi = 0; vi < (int)local_obj.size(); vi++) {
-                        for (int vj = 0; vj < (int)local_obj[vi].size(); vj++) {
+                    for (int vi = 0; vi < (int)Obj.size(); vi++) {
+                        for (int vj = 0; vj < (int)Obj[vi].size(); vj++) {
                             
                             // @TODO: check if ray intersects this voxel
                             // @TODO: compute actual backprojection contribution
 
                             // Accumulate energy into the local copy
                             if(cm.voxelInCone_CenterOnly(Obj[vi][vj], pixel_cone)){
-                                Obj[vi][vj].setEnergy(Obj[vi][vj].getEnergy() + cm.voxelEnergyFromConeLight(Obj[vi][vj], direction_cone, thingy * P_t_L, Exp_t));
+                                local_energy[vi][vj] = cm.voxelEnergyFromConeLight(Obj[vi][vj], direction_cone, thingy * P_t_L, Exp_t);
                             }
                         }
                     }
@@ -95,7 +95,7 @@ void processAngles(int start, int end, const vector<vector<Voxel>>& obj) {
         std::ofstream g("./generated/test.csv");
         for (int vi = 0; vi < (int)Obj.size(); vi++) {
             for (int vj = 0; vj < (int)Obj[vi].size(); vj++) {
-                float merged = Obj[vi][vj].getEnergy() + local_obj[vi][vj].getEnergy();
+                float merged = Obj[vi][vj].getEnergy() + local_energy[vi][vj];
                 Obj[vi][vj].setEnergy(merged);
                 if(Obj[vi][vj].getEnergy()>Energy_for_solid_Voxel)
                     g   << Obj[vi][vj].getCenter().getX() << ','
