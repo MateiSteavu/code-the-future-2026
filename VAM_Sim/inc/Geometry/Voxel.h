@@ -45,8 +45,6 @@ public:
     Vector3 normalize() const;                  // Unit vector toward center
     float   distanceTo(const Voxel& other) const; // Center-to-center distance
 
-    // Voxel-specific
-    Vector3 half() const;                       // Half-extent as Vector3 (X, Y, Z)
     std::array<Vector3, 8> corners() const;     // 8 AABB corners
     float circumsphereRadius() const;           // Worst-case center-to-corner distance
     float volume() const;                       // 8 * X * Y * Z

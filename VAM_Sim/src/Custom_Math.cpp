@@ -107,8 +107,8 @@ bool Custom_Math::voxelInCone_AxisClosestPoint(const Voxel& voxel, const Cone& c
     Vector3 axisPoint = cone.getOrigin() + cone.getDirection() * t;
 
     // Clamp that point to the AABB (closest point ON the AABB to the axis)
-    Vector3 lo = voxel.getCenter() - voxel.half();
-    Vector3 hi = voxel.getCenter() + voxel.half();
+    Vector3 lo = voxel.getCenter() - Vector3(Voxel_Size/2,Voxel_Size/2,Voxel_Size/2);
+    Vector3 hi = voxel.getCenter() + Vector3(Voxel_Size/2,Voxel_Size/2,Voxel_Size/2);
     Vector3 closestOnAABB = axisPoint.clamped(lo, hi);
 
     // Check if that closest AABB point is inside the cone
