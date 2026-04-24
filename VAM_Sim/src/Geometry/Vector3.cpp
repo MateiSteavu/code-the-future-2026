@@ -105,6 +105,28 @@ void Vector3::Rot_Z(float theta) {
     y = static_cast<float>(newY);
 }
 
+// Rotate around another Vector3 object
+void Vector3::Rot_Vector3(const Vector3& pivot, float theta){
+    Vector3 k = pivot.normalize();
+    double cosT = std::cos(theta);
+    double sinT = std::sin(theta);
+
+    Vector3 v(x, y, z);
+
+    // Rodrigues' rotation formula:
+    // v_rot = v*cosθ + (k × v)*sin(T) + k*(k*v)*(1-cosT)
+
+    Vector3 term1 = v * cosT;
+    Vector3 term2 = k.cross(v) * sinT;
+    Vector3 term3 = k * (k.dot(v) * (1.0 - cosT));
+
+    Vector3 result = term1 + term2 + term3;
+
+    x = result.getX();
+    y = result.getY();
+    z = result.getZ();
+}
+
 // ─── Math Functions ───────────────────────────────────────────────────────────
 
 float Vector3::dot(const Vector3& other) const {

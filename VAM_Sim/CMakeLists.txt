@@ -62,6 +62,28 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+# Cone test
+add_executable(
+  Cone_test
+  ${PROJECT_SOURCE_DIR}/Tests/Cone_test.cpp
+)
+target_link_libraries(
+  Cone_test PRIVATE geometry 
+  GTest::gtest_main
+)
+
+# Voxel test
+add_executable(
+  Voxel_test
+  ${PROJECT_SOURCE_DIR}/Tests/Voxel_test.cpp
+)
+target_link_libraries(
+  Voxel_test PRIVATE geometry 
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_discover_tests(Ray_test)
 gtest_discover_tests(Vector3_test)
+gtest_discover_tests(Cone_test)
+gtest_discover_tests(Voxel_test)

@@ -35,6 +35,7 @@ public:
     void Rot_X(float theta);
     void Rot_Y(float theta);
     void Rot_Z(float theta);
+    void Rot_Vector3(const Vector3& pivot, float theta);
 
     // Math
     float   dot   (const Vector3& other) const;
