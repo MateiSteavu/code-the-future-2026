@@ -12,6 +12,7 @@
 
 #define Print_Radius 30             //mm
 #define Voxel_Size 2                //mm
+#define mu          4               //
 
 #define Energy_for_solid_Voxel 4    //Joules
 
