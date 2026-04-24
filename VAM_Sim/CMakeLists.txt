@@ -82,8 +82,19 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+# Custom_Math_test
+add_executable(
+  Custom_Math_test
+  ${PROJECT_SOURCE_DIR}/Tests/Custom_Math_test.cpp
+)
+target_link_libraries(
+  Custom_Math_test PRIVATE geometry custom_math
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_discover_tests(Ray_test)
 gtest_discover_tests(Vector3_test)
 gtest_discover_tests(Cone_test)
 gtest_discover_tests(Voxel_test)
+gtest_discover_tests(Custom_Math_test)
