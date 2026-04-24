@@ -2,6 +2,8 @@
 #define VOXEL_H
 
 #include "./Vector3.h"
+#include <math.h>
+#include <algorithm>
 
 class Voxel {
 private:

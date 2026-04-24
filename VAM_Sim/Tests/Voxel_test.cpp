@@ -118,7 +118,7 @@ TEST(VoxelTest, CircumsphereRadius) {
     Voxel v(Vector3(0,0,0), 1,1,1);
 
     float r = v.circumsphereRadius();
-    EXPECT_NEAR(r, std::sqrt(3.0f), 1e-5f);
+    EXPECT_NEAR(r, sqrt(3.0f), 1e-5f);
 }
 
 // ─── Corners ─────────────────────────────────────────────────
