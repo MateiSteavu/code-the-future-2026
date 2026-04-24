@@ -18,6 +18,8 @@
 
 #define Energy_for_solid_Voxel 4    //Joules
 
+#define PI 3.14
+
 #define n1 1.0
 #define n2 1.5
 #define n4 1.49

@@ -20,7 +20,7 @@ class Custom_Math{
         static bool voxelInCone_BoundingSphere(const Voxel& voxel, const Cone& cone);
         static bool voxelInCone_CenterOnly(const Voxel& voxel, const Cone& cone);
         static bool pointInCone(const Vector3& point, const Cone& cone);
-        static float Custom_Math::voxelEnergyFromConeLight(
+        static float voxelEnergyFromConeLight(
                 const Voxel&    voxel,
                 const Cone&     cone,
                 float           sourceRadiance,   // L_i  (W/m²/sr)
@@ -30,7 +30,13 @@ class Custom_Math{
             float  pathLength,  // ray segment length inside voxel (m)
             float  deltaTime    // exposure duration (s)
         );
-    private:
+
+        static Vector3 pixelToWorld(int img_x, int img_y);
+    
+        static Vector3 computeRayDirection(const Vector3& pixelPos);
+        static void    rotateRay(Vector3& origin, Vector3& direction, float angleDeg);
+        static Vector3 pixelBaseX(int img_x);
+        static float   pixelOffsetY(int img_y);
 };
 
 #endif

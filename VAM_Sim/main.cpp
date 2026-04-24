@@ -66,16 +66,18 @@ void processAngles(int start, int end, const vector<vector<Voxel>>& obj) {
                     current_pixel.setZ(imgOrigin.getZ()-img_y*MD_DIM_Z);
                     current_pixel.Rot_Vector3(worldOrigin, theta);
 
+                    Ray  pixel_ray      (current_pixel,  worldOrigin);
+                    Cone pixel_cone     (pixel_ray,      RAY_Angle);
+
                     for (int vi = 0; vi < (int)local_obj.size(); vi++) {
                         for (int vj = 0; vj < (int)local_obj[vi].size(); vj++) {
                             
-
                             // @TODO: check if ray intersects this voxel
                             // @TODO: compute actual backprojection contribution
 
                             // Accumulate energy into the local copy
-                            if(cm.voxelInCone_CenterOnly(Point)){
-                                Obj[vi][vj].setEnergy(Obj[vi][vj].getEnergy() + cm.voxelEnergyFromConeLight(Obj[vi][vj], cone, thingy * P_t_L, Exp_t));
+                            if(cm.voxelInCone_CenterOnly(Obj[vi][vj], pixel_cone)){
+                                Obj[vi][vj].setEnergy(Obj[vi][vj].getEnergy() + cm.voxelEnergyFromConeLight(Obj[vi][vj], direction_cone, thingy * P_t_L, Exp_t));
                             }
                         }
                     }
