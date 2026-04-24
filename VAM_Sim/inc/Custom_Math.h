@@ -20,12 +20,11 @@ class Custom_Math{
         static bool voxelInCone_BoundingSphere(const Voxel& voxel, const Cone& cone);
         static bool voxelInCone_CenterOnly(const Voxel& voxel, const Cone& cone);
         static bool pointInCone(const Vector3& point, const Cone& cone);
-        static float voxelEnergyFromConeLight(
-            const Voxel& voxel,
-            const Cone&  cone,
-            float sourceRadiance,                 
-            float T_path,           
-            float deltaTime);
+        static float Custom_Math::voxelEnergyFromConeLight(
+                const Voxel&    voxel,
+                const Cone&     cone,
+                float           sourceRadiance,   // L_i  (W/m²/sr)
+                float           deltaTime);
         static float beerLambert_VoxelAbsorption(
             float  I_in,        // incoming irradiance (W/m²)
             float  pathLength,  // ray segment length inside voxel (m)

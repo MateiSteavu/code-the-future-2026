@@ -61,7 +61,7 @@ void processAngles(int start, int end, const vector<vector<Voxel>>& obj) {
 
                             // Accumulate energy into the local copy
                             if(cm.voxelInCone_CenterOnly(Point)){
-                                Obj[vi][vj].setEnergy(Obj[vi][vj].getEnergy() + cm.voxelEnergyFromConeLight(Obj[vi][vj], cone, thingy * P_t_L,, Exp_t));
+                                Obj[vi][vj].setEnergy(Obj[vi][vj].getEnergy() + cm.voxelEnergyFromConeLight(Obj[vi][vj], cone, thingy * P_t_L, Exp_t));
                             }
                         }
                     }

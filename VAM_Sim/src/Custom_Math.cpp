@@ -237,29 +237,43 @@ float Custom_Math::beerLambert_VoxelAbsorption(
 //    deltaTime   — exposure duration (seconds)
 //
 float Custom_Math::voxelEnergyFromConeLight(
-    const Voxel& voxel,
-    const Cone&  cone,
-    float sourceRadiance,   // L_i  (W/m²/sr)
-    float T_path,           // transmittance accumulated before this voxel
-    float deltaTime)        // exposure duration (s)
+    const Voxel&    voxel,
+    const Cone&     cone,
+    float           sourceRadiance,   // L_i  (W/m²/sr)
+    float           deltaTime)        // exposure duration (s)
+    // T_path parameter removed – computed internally from geometry
 {
     // ---- Step 1: Is this voxel inside the cone? ----
     if (!voxelInCone_Robust(voxel, cone))
         return 0.0f;
 
-    // ---- Step 2: Irradiance arriving at the voxel (W/m²) ----
+    // ---- Step 2: Path transmittance from the cylinder margin to the voxel ----
+    //
+    //  distance_voxel_to_margin returns BC (m):
+    //    the distance from the cylinder boundary to the voxel centre,
+    //    measured along the ray from the cone origin.
+    //
+    //  Beer-Lambert transmittance over that path:
+    //    T_path = exp( -μ · BC )
+    //
+    //  μ (mu) is the linear attenuation coefficient of the medium (1/m).
+    //
+    float BC      = distance_voxel_to_margin(cone.getOrigin(), voxel);
+    float T_path  = std::exp(-mu * BC);
+
+    // ---- Step 3: Irradiance arriving at the voxel (W/m²) ----
     //
     //  Radiance → Irradiance: E = L_i × Ω
-    //  Apply path transmittance (occlusion by prior voxels): × T_path
+    //  Scale by path transmittance (attenuation through the medium): × T_path
     //
-    float solidAngle = cone.solidAngle();           // Ω = 2π(1 - cos θ)
+    float solidAngle = cone.solidAngle();           // Ω = 2π(1 − cos θ)
     float I_in       = sourceRadiance * solidAngle * T_path;
 
-    // ---- Step 3: Beer-Lambert → absorbed energy in Joules ----
+    // ---- Step 4: Beer-Lambert → absorbed energy in Joules ----
     //
-    //  beerLambert_VoxelAbsorption now returns Joules directly.
+    //  beerLambert_VoxelAbsorption accounts for attenuation
+    //  across the voxel itself (one Voxel_Size step).
     //
-    float I_out_unused = 0.0f;
     float energy_joules = beerLambert_VoxelAbsorption(
         I_in,
         Voxel_Size,   // path length through the voxel (m)
