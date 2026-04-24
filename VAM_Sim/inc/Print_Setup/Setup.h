@@ -1,5 +1,5 @@
-#define DMD_Z_NR 50                 //number of mirrors
-#define DMD_Y_NR 150
+#define DMD_Z_NR 128                //number of mirrors
+#define DMD_Y_NR 128
 
 #define MD_DIM_Z 0.1                //area of a mirror mm
 #define MD_DIM_Y 0.1

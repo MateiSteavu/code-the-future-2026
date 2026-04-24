@@ -309,3 +309,45 @@ float Custom_Math::distance_voxel_to_margin(const Vector3& origin, const Voxel& 
 
     return (BC > 0.0f) ? BC : 0.0f;
 }
+
+
+
+Vector3 Custom_Math::pixelToWorld(int img_x, int img_y)
+{
+    float halfZ = DMD_Z_NR * MD_DIM_Z * 0.5f;
+    float halfY = DMD_Y_NR * MD_DIM_Y * 0.5f;
+
+    float px = -halfZ + img_x * MD_DIM_Z + MD_DIM_Z * 0.5f;
+    float py = -halfY + img_y * MD_DIM_Y + MD_DIM_Y * 0.5f;
+    float pz = 0.0f;
+
+    return Vector3(px, py, pz);
+}
+
+Vector3 Custom_Math::computeRayDirection(const Vector3& pixelPos)
+{
+    Vector3 print_center(0.0f, 0.0f, DIST_DMD_PV);
+    return (print_center - pixelPos).normalize();
+}
+
+void Custom_Math::rotateRay(Vector3& origin, Vector3& direction, float angleDeg)
+{
+    float theta = angleDeg * (PI / 180.0f);
+
+    origin.Rot_Z(theta);
+    direction.Rot_Z(theta);
+}
+
+Vector3 Custom_Math::pixelBaseX(int img_x)
+{
+    float halfZ = DMD_Z_NR * MD_DIM_Z * 0.5f;
+    float px = -halfZ + img_x * MD_DIM_Z + MD_DIM_Z * 0.5f;
+
+    return Vector3(px, 0.0f, 0.0f);
+}
+
+float Custom_Math::pixelOffsetY(int img_y)
+{
+    float halfY = DMD_Y_NR * MD_DIM_Y * 0.5f;
+    return -halfY + img_y * MD_DIM_Y + MD_DIM_Y * 0.5f;
+}

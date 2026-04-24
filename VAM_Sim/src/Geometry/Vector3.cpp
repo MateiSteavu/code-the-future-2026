@@ -1,6 +1,7 @@
 #include "../../inc/Geometry/Vector3.h"
 #include <cmath>
 #include <stdexcept>
+#include <algorithm>
 
 // ─── Constructors ─────────────────────────────────────────────────────────────
 
