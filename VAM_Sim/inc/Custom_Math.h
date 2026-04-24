@@ -23,16 +23,14 @@ class Custom_Math{
         static float voxelEnergyFromConeLight(
             const Voxel& voxel,
             const Cone&  cone,
-            float sourceRadiance,   
-            float mu,               
+            float sourceRadiance,                 
             float T_path,           
             float deltaTime);
         static float beerLambert_VoxelAbsorption(
             float  I_in,        // incoming irradiance (W/m²)
-            float  mu,          // attenuation coefficient (1/m)
             float  pathLength,  // ray segment length inside voxel (m)
-            float  deltaTime,   // exposure duration (s)
-            float& I_out);
+            float  deltaTime    // exposure duration (s)
+        );
     private:
 };
 
