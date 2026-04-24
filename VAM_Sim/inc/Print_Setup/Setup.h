@@ -11,6 +11,7 @@
 #define Z_Offset_DMD 30             //Distance between min point of print volume and min point of DMD
 
 #define Print_Radius 30             //mm
+#define Print_Height 40             //mm
 #define Voxel_Size    2             //mm
 #define mu            4             // attenuation coefficient (1/m)
 #define P_t_L      0.85             //constant for turning pixel intensity to light intensity

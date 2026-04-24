@@ -12,23 +12,31 @@ vector<vector<Voxel>> Custom_Math::Radius_to_Voxel_array()
     const float start  = -Print_Radius;
     const int   n      = static_cast<int>(std::ceil(2.0f * Print_Radius / Voxel_Size));
     const float r2     = Print_Radius * Print_Radius;
- 
-    vector<vector<Voxel>> grid(n);
- 
-    for (int i = 0; i < n; ++i) {
-        grid[i].reserve(n);
-        for (int j = 0; j < n; ++j) {
-            float cx = start + Voxel_Size * (i + 0.5f);
-            float cy = start + Voxel_Size * (j + 0.5f);
+    const int   num_levels = Print_Height/Voxel_Size;
 
-            if (cx * cx + cy * cy <= r2) {
-                Voxel v(Vector3(cx, cy, 0));
-                grid[i].push_back(v);
+    vector<vector<Voxel>> levels;
+ 
+    for (int z = 0; z < num_levels; ++z) {
+        vector<Voxel> level_voxels;
+        float cz = Voxel_Size * z;
+        
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                float cx = start + Voxel_Size * (i + 0.5f);
+                float cy = start + Voxel_Size * (j + 0.5f);
+                
+                if (cx * cx + cy * cy <= r2) {
+                    level_voxels.push_back(Voxel(Vector3(cx, cy, cz)));
+                }
             }
+        }
+        
+        if (!level_voxels.empty()) {
+            levels.push_back(level_voxels);
         }
     }
  
-    return grid;
+    return levels;
 }
 
 bool Custom_Math::pointInCone(const Vector3& point, const Cone& cone)
