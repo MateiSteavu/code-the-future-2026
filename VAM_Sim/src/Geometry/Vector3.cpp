@@ -113,13 +113,10 @@ void Vector3::Rot_Vector3(const Vector3& pivot, float theta){
 
     Vector3 v(x, y, z);
 
-    // Rodrigues' rotation formula:
-    // v_rot = v*cosθ + (k × v)*sin(T) + k*(k*v)*(1-cosT)
-
+    // Rodrigues rotation
     Vector3 term1 = v * cosT;
     Vector3 term2 = k.cross(v) * sinT;
     Vector3 term3 = k * (k.dot(v) * (1.0 - cosT));
-
     Vector3 result = term1 + term2 + term3;
 
     x = result.getX();
@@ -177,4 +174,24 @@ Vector3 Vector3::clamped(const Vector3& lo, const Vector3& hi) const {
         static_cast<float>(clamp(y, loY, hiY)),
         static_cast<float>(clamp(z, loZ, hiZ))
     };
+}
+
+Vector3 rotateTowardTarget(const Vector3& currentDir,
+                           const Vector3& targetDir,
+                           float angleStep)
+{
+    Vector3 from = currentDir.normalize();
+    Vector3 to   = targetDir.normalize();
+
+    float dot = std::clamp(from.dot(to), -1.0f, 1.0f);
+    float angle = std::acos(dot);
+    float step = std::min(angleStep, angle);
+    Vector3 axis = from.cross(to);
+
+    axis = axis.normalize();
+  
+    Vector3 rotated = from;
+    rotated.Rot_Vector3(axis, step);
+
+    return rotated.normalize();
 }
