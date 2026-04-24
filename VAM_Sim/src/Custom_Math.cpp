@@ -275,3 +275,44 @@ float Custom_Math::voxelEnergyFromConeLight(
 
     return energy_joules;  // Joules
 }
+
+float distance_voxel_to_margin(const Vector3& origin, const Voxel& voxel)
+{
+    Vector3 dir = voxel.getCenter() - origin;
+
+    float dist = dir.length();
+    if (dist <= 1e-6f)
+        return 0.0f;
+
+    dir = dir / dist;
+    const float R = static_cast<float>(Print_Radius);
+
+    Vector3 p = origin;
+
+    float dx = dir.getX();
+    float dy = dir.getY();
+    float ox = origin.getX();
+    float oy = origin.getY();
+
+    float a = dx*dx + dy*dy;
+    float b = 2.0f * (ox*dx + oy*dy);
+    float c = ox*ox + oy*oy - R*R;
+
+    float disc = b*b - 4*a*c;
+
+    if (disc < 0.0f)
+        return 0.0f;
+
+    float t1 = (-b - std::sqrt(disc)) / (2.0f * a);
+
+    if (t1 < 0.0f)
+        return 0.0f;
+
+    float AB = t1;
+
+    float AC = dist;
+
+    float BC = AC - AB;
+
+    return (BC > 0.0f) ? BC : 0.0f;
+}

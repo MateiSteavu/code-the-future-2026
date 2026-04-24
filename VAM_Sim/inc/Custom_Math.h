@@ -12,6 +12,7 @@ class Custom_Math{
         static bool Ray_Voxel_Intersect(Ray ray, Voxel v);
         static void Beer_Lambert_Energy(Ray ray, Voxel v);
         vector<vector<Voxel>> Radius_to_Voxel_array();
+        static float distance_voxel_to_margin(const Vector3& origin, const Voxel& voxel);
 
         static bool voxelInCone_Robust(const Voxel& voxel, const Cone& cone);
         static bool voxelInCone_AxisClosestPoint(const Voxel& voxel, const Cone& cone);
