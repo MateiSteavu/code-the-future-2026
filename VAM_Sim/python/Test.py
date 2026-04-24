@@ -66,8 +66,10 @@ import pyvista as pv
 import time
 import pandas as pd
 
-seen_count = 0
 BATCH_SIZE = 50
+all_points = []      # accumulate every point ever seen
+seen_count = 0
+current_actor = None
 
 plotter = pv.Plotter()
 plotter.set_background('grey')
@@ -77,21 +79,33 @@ while True:
     try:
         data = pd.read_csv('test.csv', header=None).dropna().values
         if data.size == 0:
+            plotter.update()
+            time.sleep(0.1)
             continue
+
         if data.ndim == 1:
             data = data.reshape(1, -1)
-        
+
         if len(data) > seen_count:
-            new_points = data[seen_count:seen_count + BATCH_SIZE, :3]
-            cloud = pv.PolyData(new_points.astype(float))
-            glyphs = cloud.glyph(scale=False, geom=pv.Cube(), factor=2.0)
-            plotter.add_mesh(glyphs, color='red', show_edges=True, edge_color='black')
+            # Grab all new rows (not just one batch) to catch up if needed
+            new_points = data[seen_count:, :3]
+            all_points.append(new_points.astype(float))
             seen_count += len(new_points)
+
+            # Remove the previous actor before adding the updated one
+            if current_actor is not None:
+                plotter.remove_actor(current_actor)
+
+            cloud = pv.PolyData(np.vstack(all_points))
+            glyphs = cloud.glyph(scale=False, geom=pv.Cube(), factor=2.0)
+            current_actor = plotter.add_mesh(
+                glyphs, color='red', show_edges=True, edge_color='black'
+            )
             plotter.reset_camera()
 
     except Exception as e:
         print(f"error: {e}")
-    
+
     plotter.update()
     time.sleep(0.1)
 

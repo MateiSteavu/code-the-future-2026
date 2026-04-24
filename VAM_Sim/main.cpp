@@ -47,6 +47,8 @@ vector<vector<float>> processAngle(int i, Custom_Math& cm) {
 
     float thingy;
     for (int img_x = 0; img_x < 128; img_x++) {
+        if(img_x%20 == 0)
+            std::cout<<"processed "<<img_x<< " lines for image "<<i<<'\n';
         for (int img_y = 0; img_y < 128; img_y++) {
             f >> thingy;
 
